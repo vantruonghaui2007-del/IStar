@@ -5,6 +5,7 @@ import { useOffline } from './offline/useOffline'
 import { PALETTES, PALETTE_IDS } from './artwork/palettes'
 import { grownPlant } from './artwork/plant'
 import { renderArtwork, type Cursor, type SceneItem } from './artwork/render'
+import { sampleArtworks } from './artwork/samples'
 import { CANVAS_HEIGHT, CANVAS_WIDTH, type PaletteId } from './artwork/types'
 import { ARTWORK_VERSION, ArtworkRepository, DEFAULT_ARTWORK_NAME, StorageError, type Artwork } from './storage/artworks'
 import { Autosaver, type SaveState } from './storage/autosave'
@@ -27,6 +28,7 @@ const INTRO = 'Bấm Bắt đầu để bật camera, hoặc kéo chuột trên 
 const newId = (): string => crypto.randomUUID()
 
 const repository = new ArtworkRepository()
+const SAMPLES = sampleArtworks()
 const timeFormat = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' })
 const remember = (id: string | null) => {
   try {
@@ -227,6 +229,20 @@ export default function App() {
     remember(artwork.id)
     setSaveState({ status: 'saved', at: artwork.updatedAt })
     setNotice(`Đã mở “${artwork.name}”.`)
+  }
+
+  /** Opens a fresh copy of a sample garden; it is saved only once the visitor changes it. */
+  const openSample = async (sample: Artwork) => {
+    replay.stop()
+    interrupt()
+    await autosaver.flush()
+    setArtworkId(newId())
+    setName(sample.name)
+    createdAt.current = Date.now()
+    store.dispatch({ type: 'load', strokes: sample.strokes })
+    dirty.current = false
+    setSaveState({ status: 'idle' })
+    setNotice(`Đang xem vườn mẫu “${sample.name}”. Bấm Phát lại để xem cách nó được vẽ, hoặc vẽ tiếp để tạo bản của bạn.`)
   }
 
   const newArtwork = async () => {
@@ -505,6 +521,8 @@ export default function App() {
           <span className="section-label">THƯ VIỆN</span>
           <Library
             artworks={artworks}
+            samples={SAMPLES}
+            onOpenSample={sample => void openSample(sample)}
             currentId={artworkId}
             unavailable={libraryUnavailable}
             onNew={() => void newArtwork()}

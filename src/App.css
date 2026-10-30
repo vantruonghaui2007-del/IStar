@@ -733,3 +733,7 @@ footer i {
   padding: 6px 12px;
   font-size: 12px;
 }
+.guide .library-samples {
+  display: block;
+  margin: 18px 0 6px;
+}

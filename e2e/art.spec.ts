@@ -9,8 +9,8 @@ test('strokes grow into plants; undo, restore and start over work on whole strok
   await drag(page, [0.15, 0.85], [0.45, 0.25], 40)
   await expect(stats).toHaveText(/^1 cây · [1-9]\d* lá · 1 hoa$/)
 
-  await page.getByRole('button', { name: 'Hoàng hôn' }).click()
-  await expect(page.getByRole('button', { name: 'Hoàng hôn' })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: 'Hoàng hôn', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Hoàng hôn', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await drag(page, [0.6, 0.9], [0.8, 0.3], 40)
   await expect(stats).toHaveText(/^2 cây/)
 

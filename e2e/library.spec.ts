@@ -53,7 +53,7 @@ test('replay pauses, restarts and ends on exactly the exported picture, without 
   })
   await page.goto('/')
   await drag(page, [0.2, 0.85], [0.45, 0.25], 30)
-  await page.getByRole('button', { name: 'Đêm đom đóm' }).click()
+  await page.getByRole('button', { name: 'Đêm đom đóm', exact: true }).click()
   await drag(page, [0.7, 0.9], [0.55, 0.3], 30)
   await page.waitForTimeout(800)
 
@@ -113,4 +113,16 @@ test('when storage fails the garden stays on screen and PNG export still works',
   expect(png.subarray(1, 4).toString()).toBe('PNG')
   expect(png.readUInt32BE(16)).toBe(1920)
   expect(png.readUInt32BE(20)).toBe(1080)
+})
+
+test('sample gardens open as copies that can be replayed and exported', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /✿ Đêm đom đóm/ }).click()
+  await expect(page.getByLabel('Tên tác phẩm')).toHaveValue('Đêm đom đóm')
+  await expect(page.getByTestId('garden-stats')).toHaveText(/^6 cây · \d+ lá · 9 hoa$/)
+  await page.getByRole('button', { name: /^▷ Phát lại$/ }).click()
+  await page.getByRole('button', { name: 'Tốc độ 2×' }).click()
+  await expect(page.getByTestId('replay-state')).toHaveText('Phát lại xong', { timeout: 30_000 })
+  // Viewing a sample does not add it to the visitor's library.
+  await expect(page.getByTestId('library').locator('.library-row')).toHaveCount(0)
 })
