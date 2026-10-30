@@ -9,6 +9,8 @@ export type TrackerEvents = {
   onStatus: (status: TrackerStatus, detail?: string) => void
   onSample: (sample: HandSample) => void
   onStats: (stats: TrackerStats) => void
+  /** The camera went away (unplugged, taken by another app). The tracker has already stopped. */
+  onLost: () => void
 }
 
 const MAX_DETECTIONS_PER_SECOND = 20
@@ -51,6 +53,7 @@ export class HandTracker {
     this.events.onStatus('loading')
     const stream = await openCamera()
     this.stream = stream
+    stream.getVideoTracks().forEach(track => track.addEventListener('ended', this.lost, { once: true }))
     this.video.srcObject = stream
     this.video.muted = true
     this.video.playsInline = true
@@ -86,6 +89,12 @@ export class HandTracker {
     this.video.srcObject = null
     this.detections = []
     this.events.onStatus('off')
+  }
+
+  private lost = () => {
+    if (!this.stream) return
+    this.stop()
+    this.events.onLost()
   }
 
   private startWorker() {

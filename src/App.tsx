@@ -82,6 +82,8 @@ export default function App() {
 
   const onSample = useCallback(
     (sample: HandSample) => {
+      // Replay shows a finished artwork: the hand must not draw into it.
+      if (sceneOverride.current) return
       lastSample.current = sample
       const update = controller.update(sample)
       update.events.forEach(input.handle)
@@ -105,6 +107,11 @@ export default function App() {
     setHand('absent')
   }, [controller, input])
 
+  // Camera stopped or lost: close any hand stroke and forget the cursor.
+  useEffect(() => {
+    if (!cameraOn) interrupt()
+  }, [cameraOn, interrupt])
+
   const onFrame = useCallback(
     (now: number) => {
       const update = controller.tick(now)
@@ -120,7 +127,7 @@ export default function App() {
       if (document.hidden) {
         interrupt()
         pause()
-      } else resume()
+      } else if (!sceneOverride.current) resume()
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)

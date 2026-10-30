@@ -48,3 +48,37 @@ test('replay stops hand processing and drawing; leaving replay resumes it', asyn
   await page.getByRole('button', { name: 'Thoát phát lại' }).first().click()
   await expect(page.getByTestId('ai-stats')).toHaveText(/[1-9]\d* lần\/giây/, { timeout: 5_000 })
 })
+
+test('losing the camera mid-session is explained, mouse keeps working and retry reconnects', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Bắt đầu' }).click()
+  await expect(page.getByTestId('tracking-status')).toHaveText('AI đang nhận diện', { timeout: 30_000 })
+  // What the browser fires when a webcam is unplugged or taken by another app.
+  await page.evaluate(() => (document.querySelector('video')!.srcObject as MediaStream).getVideoTracks()[0].dispatchEvent(new Event('ended')))
+  await expect(page.getByRole('status')).toContainText('Mất kết nối camera')
+  await expect(page.getByTestId('hand-state')).toHaveText('Chế độ chuột')
+  await page.getByRole('button', { name: 'Thử lại' }).click()
+  await expect(page.getByTestId('tracking-status')).toHaveText('AI đang nhận diện', { timeout: 30_000 })
+})
+
+test('switching tabs during a replay does not resume hand processing', async ({ page }) => {
+  await page.goto('/')
+  const box = (await page.getByTestId('art-canvas').boundingBox())!
+  await page.mouse.click(box.x + box.width / 3, box.y + box.height / 2)
+  await page.getByRole('button', { name: 'Bắt đầu' }).click()
+  await expect(page.getByTestId('ai-stats')).toHaveText(/[1-9]\d* lần\/giây/, { timeout: 30_000 })
+  await page.getByRole('button', { name: /^▷ Phát lại$/ }).click()
+  await expect(page.getByTestId('ai-stats')).toHaveText(/^0 lần\/giây/, { timeout: 5_000 })
+  await page.evaluate(() => {
+    const show = (hidden: boolean) => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => hidden })
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') })
+      document.dispatchEvent(new Event('visibilitychange'))
+    }
+    show(true)
+    show(false)
+  })
+  await page.waitForTimeout(2_500)
+  await expect(page.getByTestId('ai-stats')).toHaveText(/^0 lần\/giây/)
+  await expect(page.getByTestId('garden-stats')).toHaveText('0 cây · 0 lá · 1 hoa')
+})

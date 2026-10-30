@@ -12,6 +12,8 @@ export type TrackingState = {
   stats: TrackerStats | null
 }
 
+const CAMERA_LOST = 'Mất kết nối camera (webcam bị rút ra hoặc ứng dụng khác đã chiếm). Cắm lại rồi bấm Thử lại — hoặc vẽ bằng chuột.'
+
 const initial: TrackingState = { status: 'off', problem: null, cameraFailed: false, stats: null }
 
 /** Owns the HandTracker for a <video> element and exposes React state for it. */
@@ -36,6 +38,10 @@ export function useHandTracking(video: RefObject<HTMLVideoElement | null>, onSam
         })),
       onSample: sample => sampleHandler.current(sample),
       onStats: stats => setState(previous => ({ ...previous, stats })),
+      onLost: () => {
+        tracker.current = null
+        setState({ status: 'off', problem: CAMERA_LOST, cameraFailed: true, stats: null })
+      },
     })
     tracker.current = instance
     try {
