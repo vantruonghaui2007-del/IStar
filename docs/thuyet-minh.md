@@ -26,6 +26,8 @@ Mỗi nhạc cụ có:
 - **Hướng dẫn cách chơi** bằng tay và **bài tập 3 bước** tự đánh dấu khi người chơi làm đúng;
 - **Tác phẩm mẫu** (*Gió đồng*, *Chiều quê*, *Mưa xuân*, *Hội làng*) phát lại cùng khu vườn mọc theo tiếng nhạc.
 
+**Sân khấu nhạc cụ (thực tế tăng cường — AR):** hình camera hiện lớn như gương soi, nhạc cụ ảo vẽ đè lên — dây đàn tranh có nhạn đàn, đàn bầu với cần đàn uốn theo tay, ống sáo có lỗ bấm, hai mặt trống cơm. Người chơi *nhìn thấy tay mình chạm vào dây đàn*; dây rung, mặt trống gợn sóng khi đánh trúng. **Tập đánh cả bài:** nốt cần đánh sáng vàng, bài chờ người chơi đánh đúng rồi mới đi tiếp, đến khi hoàn thành cả bài.
+
 Nhiều người lần lượt chơi các nhạc cụ khác nhau sẽ cùng tạo ra **một bản hòa tấu và một bức tranh quê chung**; phát lại để nghe – xem lại toàn bộ, xuất ảnh PNG Full HD làm kỷ niệm.
 
 ## 3. Thông điệp
@@ -49,7 +51,7 @@ Hạn chế: cần đủ sáng, một bàn tay; độ trễ phụ thuộc máy (
 
 1. **Cơ thể là nhạc cụ**: không cần đàn, không cần chạm — một thao tác chụm tay thay cho gảy, thổi, gõ.
 2. **Âm nhạc thành hình**: mỗi nốt nhạc mọc thành chi tiết thực vật mang tính biểu tượng của chính nhạc cụ đó (tre cho sáo trúc, lúa cho trống cơm…). Bức tranh *là* bản nhạc.
-3. **Học mà chơi**: giới thiệu, hướng dẫn, bài tập tự kiểm tra, rồi thưởng thức tác phẩm — trong vài phút.
+3. **Học mà chơi**: giới thiệu, hướng dẫn, bài tập tự kiểm tra, **tập đánh trọn một bài trên sân khấu AR** (nốt sáng vàng, chờ đánh đúng), rồi thưởng thức tác phẩm — trong vài phút.
 4. **Chạy hoàn toàn trên máy, kể cả offline**: AI, âm thanh, đồ họa đều trong trình duyệt; mang tới bất kỳ phòng học, sân khấu, bảo tàng nào. Thư viện AI có sẵn cơ chế gửi thống kê ra ngoài — nhóm phát hiện và chặn, có kiểm thử chứng minh.
 
 ## 6. Ứng dụng thực tế
@@ -75,8 +77,8 @@ React + TypeScript + Vite · MediaPipe Tasks Vision 1.2.0 · Web Audio · Canvas
 
 | Hạng mục | Kết quả |
 |---|---|
-| Kiểm thử đơn vị | 93/93 — thang ngũ cung, nốt nhạc theo cử chỉ, tác phẩm mẫu phát đúng từng nốt đã viết, bài tập từng bước, cây theo nhạc cụ, lưu trữ, phát lại, offline |
-| Kiểm thử đầu-cuối (Playwright, bản production, model thật với webcam giả) | 23/23 — 4 nhạc cụ đều phát tiếng và hiện tên nốt, bài tập tự đánh dấu, tác phẩm mẫu phát hết, offline sau khi khởi động lại trình duyệt, quyền riêng tư 60 giây, cập nhật phiên bản |
+| Kiểm thử đơn vị | 97/97 — thang ngũ cung, nốt nhạc theo cử chỉ, tác phẩm mẫu phát đúng từng nốt đã viết, bài tập từng bước, cây theo nhạc cụ, lưu trữ, phát lại, offline |
+| Kiểm thử đầu-cuối (Playwright, bản production, model thật với webcam giả) | 28/28 — sân khấu AR (đánh trọn bài “Hội làng” 46 nốt, đàn tranh theo dây sáng, camera hiện sau nhạc cụ), 4 nhạc cụ đều phát tiếng và hiện tên nốt, bài tập tự đánh dấu, tác phẩm mẫu phát hết, offline sau khi khởi động lại trình duyệt, quyền riêng tư 60 giây, cập nhật phiên bản |
 | Độ bền | 10 phút liên tục (camera + model + vẽ + phát lại + xuất ảnh): không lỗi, bộ nhớ ổn định |
 | Hiệu năng (máy chủ CI không GPU) | 11–14 lần nhận diện/giây; cần đo lại trên laptop trình diễn |
 

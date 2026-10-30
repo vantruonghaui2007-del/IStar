@@ -8,6 +8,7 @@ import { CANVAS_HEIGHT, CANVAS_WIDTH } from './artwork/types'
 import { AudioEngine } from './music/audio'
 import { INSTRUMENTS, INSTRUMENT_IDS, type InstrumentId } from './music/instruments'
 import { pieceArtwork } from './music/pieces'
+import { advanceLesson, createLesson, type Lesson } from './music/lesson'
 import { MusicPlayer } from './music/player'
 import { noteLabel } from './music/scale'
 import { scoreOf } from './music/score'
@@ -21,6 +22,8 @@ import { InstrumentPanel, type TutorialState } from './studio/InstrumentPanel'
 import { Library } from './studio/Library'
 import { PinchDemo } from './studio/PinchDemo'
 import { ReplayBar } from './studio/ReplayBar'
+import { StageView } from './studio/StageView'
+import type { StageHit } from './stage/drawStage'
 import { StrokeInput } from './studio/strokeInput'
 import { useHandTracking } from './studio/useHandTracking'
 import { useReplay } from './studio/useReplay'
@@ -76,10 +79,18 @@ export default function App() {
   const [muted, setMuted] = useState(false)
   const [note, setNote] = useState<{ text: string; key: number } | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [view, setView] = useState<'garden' | 'stage'>('garden')
+  const [lesson, setLesson] = useState<Lesson | null>(null)
+  const stageHits = useRef<StageHit[]>([])
   useEffect(() => {
     engine.onStateChange = setAudioState
     player.onNote = (played, event) => {
       if (!('degree' in event)) return
+      // Live notes (not replay) light the stage and move the play-along lesson on.
+      if (!sceneOverride.current) {
+        stageHits.current.push({ instrument: played, degree: event.degree, at: performance.now() })
+        setLesson(current => (current ? advanceLesson(current, played, event.degree) : current))
+      }
       const label = played === 'trong-com' ? (event.degree >= 5 ? 'Tình' : 'Tùng') : noteLabel(event.degree).name
       setNote({ text: `${INSTRUMENTS[played].name} · ${label}`, key: performance.now() })
       clearTimeout(noteTimer.current)
@@ -284,6 +295,8 @@ export default function App() {
     if (played) setInstrument(played)
     engine.unlock()
     pause()
+    setLesson(null)
+    setView('garden')
     replay.start(sample.strokes)
     setPlayingPiece(played ?? null)
     setNotice(`Đang phát tác phẩm “${sample.name}”${played ? ` — ${INSTRUMENTS[played].name}` : ''}. Xem khu vườn mọc theo tiếng nhạc; thoát phát lại để chơi tiếp trên bản này.`)
@@ -299,8 +312,26 @@ export default function App() {
     engine.unlock()
     setInstrument(id)
     if (tutorial && tutorial.instrument !== id) setTutorial(null)
+    if (lesson && lesson.instrument !== id) setLesson(null)
     setNotice(`${INSTRUMENTS[id].name}: ${INSTRUMENTS[id].howTo[0]}`)
   }
+  /** Play-along: the whole demo piece, one lit-up note at a time, on the AR stage. */
+  const startLesson = (id: InstrumentId = instrument) => {
+    engine.unlock()
+    if (replay.active) stopReplay()
+    setTutorial(null)
+    setInstrument(id)
+    setView('stage')
+    setLesson(createLesson(id))
+    setNotice('Đánh đúng nốt đang sáng vàng để đi tiếp — không cần vội, bài chờ bạn.')
+  }
+  const showView = (next: 'garden' | 'stage') => {
+    engine.unlock()
+    if (next === 'stage' && replay.active) stopReplay()
+    if (next === 'garden') setLesson(null)
+    setView(next)
+  }
+
   const practise = (start: boolean) => {
     engine.unlock()
     if (start && replay.active) stopReplay()
@@ -547,7 +578,7 @@ export default function App() {
       <div className="studio">
         <aside className="guide">
           <span className="section-label">NHẠC CỤ CỔ TRUYỀN</span>
-          <InstrumentPanel instrument={instrument} tutorial={tutorial} playingPiece={playingPiece} onSelect={chooseInstrument} onTutorial={practise} onPiece={id => void openPiece(PIECES[INSTRUMENT_IDS.indexOf(id)])} />
+          <InstrumentPanel instrument={instrument} tutorial={tutorial} playingPiece={playingPiece} onSelect={chooseInstrument} onTutorial={practise} onPiece={id => void openPiece(PIECES[INSTRUMENT_IDS.indexOf(id)])} onLesson={startLesson} />
 
           <span className="section-label">CÁCH CHƠI</span>
           <ol className="steps">
@@ -604,7 +635,14 @@ export default function App() {
 
         <section className="art-area">
           <div className="art-top">
-            <span>KHU VƯỜN CỦA BẠN</span>
+            <div className="view-switch" role="tablist" aria-label="Chế độ xem">
+              <button type="button" role="tab" aria-selected={view === 'garden'} onClick={() => showView('garden')}>
+                🌿 Khu vườn
+              </button>
+              <button type="button" role="tab" aria-selected={view === 'stage'} onClick={() => showView('stage')}>
+                🎎 Sân khấu nhạc cụ (AR)
+              </button>
+            </div>
             <span className="garden-stats" data-testid="garden-stats" data-strokes={strokes.length}>
               {garden.notes} nốt · {garden.blooms} hoa lá · {garden.instruments} nhạc cụ
             </span>
@@ -614,7 +652,23 @@ export default function App() {
           </div>
           <div className="canvas-wrap">
             <GardenCanvas store={store} cursor={cursor} override={sceneOverride} onFrame={onFrame} onScene={onScene} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} />
-            {strokes.length === 0 && !drawing && (
+            {view === 'stage' && (
+              <StageView
+                instrument={instrument}
+                source={video}
+                cameraOn={cameraOn}
+                hand={cursor}
+                hits={stageHits}
+                lesson={lesson}
+                onLessonStop={() => setLesson(null)}
+                onLessonRestart={() => startLesson(lesson?.instrument ?? instrument)}
+                onShowGarden={() => showView('garden')}
+                onPointerDown={pointerDown}
+                onPointerMove={pointerMove}
+                onPointerUp={pointerUp}
+              />
+            )}
+            {view === 'garden' && strokes.length === 0 && !drawing && (
               <div className="canvas-caption">
                 <span className="seed" aria-hidden="true">✳</span>
                 <b>Khu vườn đang chờ bạn</b>
@@ -627,7 +681,7 @@ export default function App() {
               </div>
             )}
             {replay.active && <ReplayBar {...replay} onToggle={replay.toggle} onRestart={replay.restart} onSpeed={replay.setSpeed} onClose={stopReplay} />}
-            <CameraPreview video={video} sample={lastSample} handState={hand} visible={cameraOn} hidden={cameraHidden} onToggle={() => setCameraHidden(value => !value)} />
+            <CameraPreview video={video} sample={lastSample} handState={hand} visible={cameraOn} hidden={cameraHidden || view === 'stage'} onToggle={() => setCameraHidden(value => !value)} />
           </div>
           <div className="toolbar">
             <button type="button" onClick={undo} disabled={!strokes.length || drawing || replay.active} title="Hoàn tác (Ctrl+Z)">

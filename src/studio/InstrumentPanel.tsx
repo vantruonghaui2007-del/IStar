@@ -11,10 +11,11 @@ type Props = {
   onSelect: (id: InstrumentId) => void
   onTutorial: (start: boolean) => void
   onPiece: (id: InstrumentId) => void
+  onLesson: (id: InstrumentId) => void
 }
 
 /** Pick an instrument, learn what it is and how to play it, practise step by step, and listen to its piece. */
-export function InstrumentPanel({ instrument, tutorial, playingPiece, onSelect, onTutorial, onPiece }: Props) {
+export function InstrumentPanel({ instrument, tutorial, playingPiece, onSelect, onTutorial, onPiece, onLesson }: Props) {
   const current = INSTRUMENTS[instrument]
   const steps = TUTORIALS[instrument]
   const active = tutorial?.instrument === instrument ? tutorial : null
@@ -72,6 +73,14 @@ export function InstrumentPanel({ instrument, tutorial, playingPiece, onSelect, 
             ✋ Tập chơi từng bước
           </button>
         )}
+
+        <button type="button" className="lesson-start" onClick={() => onLesson(instrument)}>
+          <span aria-hidden="true">🎼</span>
+          <span>
+            Tập đánh cả bài “{MELODIES[instrument].title}”
+            <small>Trên sân khấu AR: nốt nào sáng vàng thì đánh nốt đó.</small>
+          </span>
+        </button>
 
         <button type="button" className="piece" onClick={() => onPiece(instrument)} aria-pressed={playingPiece === instrument}>
           <span aria-hidden="true">♫</span>
