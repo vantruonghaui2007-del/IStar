@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import type { Stroke } from '../artwork/types'
 import { ArtworkRepository, normalizeArtwork, StorageError, storageErrorKind, type Artwork } from './artworks'
 
-const stroke = (id: string, startedAt = 1_000): Stroke => ({ id, palette: 'vuon-xuan', seed: 7, startedAt, points: [{ x: 1, y: 2, t: 0 }, { x: 10, y: 20, t: 16 }] })
-const artwork = (id: string, updatedAt: number, strokes = [stroke('a')]): Artwork => ({ version: 2, id, name: `Vườn ${id}`, createdAt: updatedAt, updatedAt, width: 1920, height: 1080, strokes })
+const stroke = (id: string, startedAt = 1_000): Stroke => ({ id, instrument: 'dan-bau', seed: 7, startedAt, points: [{ x: 1, y: 2, t: 0 }, { x: 10, y: 20, t: 16 }] })
+const artwork = (id: string, updatedAt: number, strokes = [stroke('a')]): Artwork => ({ version: 3, id, name: `Vườn ${id}`, createdAt: updatedAt, updatedAt, width: 1920, height: 1080, strokes })
 const repository = () => new ArtworkRepository({ factory: new IDBFactory(), name: `test-${Math.random()}` })
 
 describe('ArtworkRepository', () => {
@@ -62,10 +62,15 @@ describe('normalizeArtwork', () => {
       ],
     }
     const upgraded = normalizeArtwork(legacy)!
-    expect(upgraded.version).toBe(2)
-    expect(upgraded.strokes.map(s => s.palette)).toEqual(['hoang-hon', 'dem-dom-dom'])
+    expect(upgraded.version).toBe(3)
+    expect(upgraded.strokes.map(s => s.instrument)).toEqual(['dan-tranh', 'sao-truc'])
     expect(upgraded.strokes[0].points.map(p => p.t)).toEqual([0, 40])
     expect(upgraded.strokes[1].startedAt - upgraded.strokes[0].startedAt).toBe(1_000)
+  })
+
+  it('upgrades version-2 palettes to the instrument with the matching look', () => {
+    const v2 = { version: 2, id: 'v2', name: 'Vườn', createdAt: 1, updatedAt: 2, width: 1920, height: 1080, strokes: [{ id: 'a', palette: 'vuon-xuan', seed: 1, startedAt: 5, points: [{ x: 1, y: 1, t: 0 }] }] }
+    expect(normalizeArtwork(v2)!.strokes[0]).toEqual({ id: 'a', instrument: 'dan-bau', seed: 1, startedAt: 5, points: [{ x: 1, y: 1, t: 0 }] })
   })
 
   it('rejects records that are not artworks', () => {

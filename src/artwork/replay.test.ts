@@ -4,7 +4,7 @@ import { buildTimeline, replayScene } from './replay'
 import type { Stroke } from './types'
 
 const stroke = (id: string, startedAt: number, duration: number): Stroke => ({
-  id, palette: 'vuon-xuan', seed: 1, startedAt,
+  id, instrument: 'dan-bau', seed: 1, startedAt,
   points: Array.from({ length: 11 }, (_, i) => ({ x: 100 + i * 20, y: 500, t: (duration * i) / 10 })),
 })
 

@@ -80,5 +80,5 @@ test('switching tabs during a replay does not resume hand processing', async ({ 
   })
   await page.waitForTimeout(2_500)
   await expect(page.getByTestId('ai-stats')).toHaveText(/^0 lần\/giây/)
-  await expect(page.getByTestId('garden-stats')).toHaveText('0 cây · 0 lá · 1 hoa')
+  await expect(page.getByTestId('garden-stats')).toHaveAttribute('data-strokes', '1')
 })

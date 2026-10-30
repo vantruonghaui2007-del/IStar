@@ -1,7 +1,7 @@
-import { isPaletteId } from '../artwork/palettes'
-import type { PaletteId, Point, Stroke } from '../artwork/types'
+import type { Point, Stroke } from '../artwork/types'
+import { isInstrumentId, type InstrumentId } from '../music/instruments'
 
-export const ARTWORK_VERSION = 2
+export const ARTWORK_VERSION = 3
 export const DEFAULT_ARTWORK_NAME = 'Khu vườn chưa đặt tên'
 
 export type Artwork = {
@@ -37,7 +37,15 @@ export class StorageError extends Error {
   }
 }
 
-const LEGACY_PALETTES: Record<string, PaletteId> = { 'Vườn xuân': 'vuon-xuan', 'Hoàng hôn': 'hoang-hon', 'Đêm đom đóm': 'dem-dom-dom' }
+/** Before instruments, strokes carried a colour palette (v2 id or v1 display name). */
+const PALETTE_INSTRUMENTS: Record<string, InstrumentId> = {
+  'vuon-xuan': 'dan-bau',
+  'Vườn xuân': 'dan-bau',
+  'hoang-hon': 'dan-tranh',
+  'Hoàng hôn': 'dan-tranh',
+  'dem-dom-dom': 'sao-truc',
+  'Đêm đom đóm': 'sao-truc',
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null
 const isPoint = (value: unknown): value is Point => isRecord(value) && [value.x, value.y, value.t].every(Number.isFinite)
@@ -45,27 +53,28 @@ const isPoint = (value: unknown): value is Point => isRecord(value) && [value.x,
 /**
  * Validates a stored record and upgrades older versions. Version 1 kept
  * palette display names and absolute `performance.now()` timestamps; version
- * 2 keeps palette ids, stroke-relative times and a wall-clock `startedAt`.
+ * 2 kept palette ids, stroke-relative times and a wall-clock `startedAt`;
+ * version 3 replaces the palette with the instrument the stroke plays.
  */
 export function normalizeArtwork(raw: unknown): Artwork | null {
   if (!isRecord(raw) || typeof raw.id !== 'string' || !Array.isArray(raw.strokes)) return null
   const createdAt = Number.isFinite(raw.createdAt) ? (raw.createdAt as number) : Date.now()
   const updatedAt = Number.isFinite(raw.updatedAt) ? (raw.updatedAt as number) : createdAt
-  const legacy = raw.version !== ARTWORK_VERSION
+  const legacy = raw.version !== 2 && raw.version !== ARTWORK_VERSION
   const firstLegacyTime = legacy ? Math.min(...raw.strokes.map(s => (isRecord(s) && Array.isArray(s.points) && isPoint(s.points[0]) ? s.points[0].t : Infinity))) : 0
   const strokes: Stroke[] = []
   for (const [index, item] of raw.strokes.entries()) {
     if (!isRecord(item) || !Array.isArray(item.points) || !item.points.every(isPoint) || !item.points.length) return null
     const points = item.points as Point[]
-    const palette = isPaletteId(item.palette) ? item.palette : (LEGACY_PALETTES[String(item.palette)] ?? 'vuon-xuan')
+    const instrument = isInstrumentId(item.instrument) ? item.instrument : (PALETTE_INSTRUMENTS[String(item.palette)] ?? 'dan-bau')
     const seed = Number.isFinite(item.seed) ? (item.seed as number) >>> 0 : index + 1
     const id = typeof item.id === 'string' ? item.id : `${raw.id}-${index}`
     if (legacy) {
       const start = points[0].t
-      strokes.push({ id, palette, seed, startedAt: createdAt + (start - firstLegacyTime), points: points.map(p => ({ x: p.x, y: p.y, t: Math.max(0, p.t - start) })) })
+      strokes.push({ id, instrument, seed, startedAt: createdAt + (start - firstLegacyTime), points: points.map(p => ({ x: p.x, y: p.y, t: Math.max(0, p.t - start) })) })
     } else {
       if (!Number.isFinite(item.startedAt)) return null
-      strokes.push({ id, palette, seed, startedAt: item.startedAt as number, points })
+      strokes.push({ id, instrument, seed, startedAt: item.startedAt as number, points })
     }
   }
   const name = typeof raw.name === 'string' && raw.name.trim() ? raw.name.trim() : DEFAULT_ARTWORK_NAME

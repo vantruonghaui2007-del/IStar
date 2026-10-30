@@ -38,11 +38,11 @@ export function Library({ artworks, samples, onOpenSample, currentId, unavailabl
           </button>
         </div>
       ))}
-      <span className="section-label library-samples">VƯỜN MẪU</span>
+      <span className="section-label library-samples">TÁC PHẨM MẪU</span>
       {samples.map(sample => (
-        <button key={sample.id} type="button" className="palette" onClick={() => onOpenSample(sample)} title="Mở một bản sao để xem, phát lại hoặc vẽ tiếp">
+        <button key={sample.id} type="button" className="palette" onClick={() => onOpenSample(sample)} title="Nghe tác phẩm và xem khu vườn mọc theo tiếng nhạc">
           <span className="library-name">✿ {sample.name}</span>
-          <small>{sample.strokes.length} nét · mẫu</small>
+          <small>{sample.strokes.length} nét · nghe</small>
         </button>
       ))}
     </div>

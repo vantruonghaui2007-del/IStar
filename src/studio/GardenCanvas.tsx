@@ -17,19 +17,23 @@ type Props = {
   /** When it returns a scene (replay), that scene is drawn instead of the live one. */
   override: RefObject<(() => SceneItem[] | null) | null>
   onFrame: (now: number) => void
+  /** Receives exactly what was drawn this frame — the music player follows it. */
+  onScene: (items: SceneItem[]) => void
   onPointerDown: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerMove: (event: PointerEvent<HTMLCanvasElement>) => void
   onPointerUp: (event: PointerEvent<HTMLCanvasElement>) => void
 }
 
 /** 1920×1080 logical canvas scaled by CSS; redrawn on requestAnimationFrame, independent of tracking rate. */
-export function GardenCanvas({ store, cursor, override, onFrame, onPointerDown, onPointerMove, onPointerUp }: Props) {
+export function GardenCanvas({ store, cursor, override, onFrame, onScene, onPointerDown, onPointerMove, onPointerUp }: Props) {
   const canvas = useRef<HTMLCanvasElement>(null)
   const renderer = useMemo(() => new GardenRenderer(), [])
   const frame = useRef(onFrame)
+  const scene = useRef(onScene)
   useEffect(() => {
     frame.current = onFrame
-  }, [onFrame])
+    scene.current = onScene
+  }, [onFrame, onScene])
 
   useEffect(() => {
     let raf = 0
@@ -41,7 +45,9 @@ export function GardenCanvas({ store, cursor, override, onFrame, onPointerDown, 
       if (!element || !ctx) return
       const replay = override.current?.() ?? null
       const pointer = replay ? null : cursor.current
-      renderer.render(ctx, replay ?? liveScene(store.getState()), pointer)
+      const items = replay ?? liveScene(store.getState())
+      renderer.render(ctx, items, pointer)
+      scene.current(items)
       const marker = pointer ? `${Math.round(pointer.x)},${Math.round(pointer.y)}` : ''
       if (element.dataset.cursor !== marker) {
         if (marker) element.dataset.cursor = marker
