@@ -1,7 +1,11 @@
 /// <reference lib="webworker" />
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision'
 import { nextTimestamp } from './frameGate'
+import { sameOriginFetch } from './privacy'
 import type { WorkerRequest, WorkerResponse } from './protocol'
+
+// Nothing but the app's own files may be fetched from this worker.
+self.fetch = sameOriginFetch(self.fetch.bind(self), self.location.origin, host => console.info(`[riêng tư] Đã chặn yêu cầu tới ${host}`))
 
 let landmarker: HandLandmarker | undefined
 let loading: Promise<void> | undefined
@@ -66,4 +70,3 @@ self.onmessage = (event: MessageEvent<WorkerRequest>) => {
   }
 }
 
-export {}
