@@ -63,6 +63,13 @@ function drawLeaf(ctx: Ctx, leaf: Leaf, grown: number) {
   ctx.translate(leaf.x, leaf.y)
   ctx.rotate(leaf.angle)
   ctx.scale(scale, scale)
+  if (leaf.shape === 'pad') drawLotusPad(ctx, leaf)
+  else if (leaf.shape === 'blade') drawBlade(ctx, leaf)
+  else drawAlmond(ctx, leaf)
+  ctx.restore()
+}
+
+function drawAlmond(ctx: Ctx, leaf: Leaf) {
   ctx.beginPath()
   ctx.moveTo(0, 0)
   ctx.quadraticCurveTo(leaf.length * 0.45, -leaf.width, leaf.length, 0)
@@ -75,6 +82,53 @@ function drawLeaf(ctx: Ctx, leaf: Leaf, grown: number) {
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.38)'
   ctx.lineWidth = 1.4
   ctx.stroke()
+}
+
+/** Long, narrow bamboo / rice leaf that droops a little towards its tip. */
+function drawBlade(ctx: Ctx, leaf: Leaf) {
+  const droop = leaf.side * leaf.length * 0.12
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.quadraticCurveTo(leaf.length * 0.5, -leaf.width + droop, leaf.length, droop * 1.6)
+  ctx.quadraticCurveTo(leaf.length * 0.5, leaf.width + droop, 0, 0)
+  ctx.fillStyle = leaf.color
+  ctx.fill()
+  ctx.beginPath()
+  ctx.moveTo(leaf.length * 0.05, 0)
+  ctx.quadraticCurveTo(leaf.length * 0.5, droop * 0.6, leaf.length * 0.9, droop * 1.4)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'
+  ctx.lineWidth = 1.2
+  ctx.stroke()
+}
+
+/** Round lotus pad on a short petiole, seen slightly from above, with its notch and veins. */
+function drawLotusPad(ctx: Ctx, leaf: Leaf) {
+  const r = leaf.length / 2
+  ctx.strokeStyle = '#4f7f52'
+  ctx.lineWidth = 3
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.lineTo(r * 0.9, 0)
+  ctx.stroke()
+  ctx.save()
+  ctx.translate(r * 1.7, 0)
+  ctx.rotate(-leaf.angle)
+  ctx.scale(1, 0.72)
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.arc(0, 0, r, -Math.PI / 2 + 0.22, (3 * Math.PI) / 2 - 0.22)
+  ctx.closePath()
+  ctx.fillStyle = leaf.color
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.28)'
+  ctx.lineWidth = 1.2
+  for (let i = 0; i < 9; i++) {
+    const angle = -Math.PI / 2 + 0.5 + (i / 8) * (2 * Math.PI - 1)
+    ctx.beginPath()
+    ctx.moveTo(0, 0)
+    ctx.lineTo(Math.cos(angle) * r * 0.9, Math.sin(angle) * r * 0.9)
+    ctx.stroke()
+  }
   ctx.restore()
 }
 
@@ -88,54 +142,140 @@ function drawPetals(ctx: Ctx, count: number, length: number, breadth: number, co
   }
 }
 
+/** A pointed petal standing on (0,0), `length` tall, leaning by `tilt`. */
+function lotusPetal(ctx: Ctx, length: number, breadth: number, tilt: number, color: string) {
+  ctx.save()
+  ctx.rotate(tilt)
+  ctx.beginPath()
+  ctx.moveTo(0, 0)
+  ctx.bezierCurveTo(-breadth, -length * 0.35, -breadth * 0.6, -length * 0.8, 0, -length)
+  ctx.bezierCurveTo(breadth * 0.6, -length * 0.8, breadth, -length * 0.35, 0, 0)
+  ctx.fillStyle = color
+  ctx.fill()
+  ctx.restore()
+}
+
+function drawGrains(ctx: Ctx, length: number, lean: number, color: string, accent: string, count: number) {
+  // A drooping ear: grains along a curve that bends over and down.
+  for (let i = 0; i < count; i++) {
+    const k = (i + 1) / count
+    const x = Math.sin(k * 1.4) * length * 0.55 * lean
+    const y = -length * 0.5 + k * k * length * 0.9
+    ctx.save()
+    ctx.translate(x, y)
+    ctx.rotate(lean * (0.4 + k))
+    ctx.beginPath()
+    ctx.ellipse(0, 0, length * 0.05 + 1.5, length * 0.1 + 2, 0, 0, Math.PI * 2)
+    ctx.fillStyle = i % 2 ? accent : color
+    ctx.fill()
+    ctx.restore()
+  }
+}
+
 function drawFlower(ctx: Ctx, flower: Flower, grown: number) {
   if (grown <= 0) return
-  const scale = Math.max(0, easeOutBack(grown))
+  const pop = Math.max(0, easeOutBack(grown))
   const r = flower.radius
   ctx.save()
   ctx.translate(flower.x, flower.y)
-  ctx.rotate(flower.rotation - (1 - grown) * 0.7)
-  ctx.scale(scale, scale)
-  drawPetals(ctx, flower.petals, r, r * 0.34, flower.petalColor, 0)
-  ctx.globalAlpha = 0.85
-  drawPetals(ctx, flower.petals, r * 0.62, r * 0.22, flower.innerColor, Math.PI / flower.petals)
-  ctx.globalAlpha = 1
-  ctx.beginPath()
-  ctx.arc(0, 0, r * 0.27, 0, Math.PI * 2)
-  ctx.fillStyle = flower.center
-  ctx.fill()
-  ctx.fillStyle = 'rgba(120, 80, 30, 0.45)'
-  for (let i = 0; i < 7; i++) {
-    const angle = (i / 7) * Math.PI * 2
-    ctx.beginPath()
-    ctx.arc(Math.cos(angle) * r * 0.16, Math.sin(angle) * r * 0.16, Math.max(1, r * 0.04), 0, Math.PI * 2)
-    ctx.fill()
+  switch (flower.kind) {
+    case 'lotus': {
+      // Lotus flowers always face up, whatever direction the stroke ended in.
+      ctx.scale(pop, pop)
+      const open = 0.35 + 0.65 * grown
+      for (const [tilt, color] of [[-1.25, flower.accent], [1.25, flower.accent], [-0.75, flower.color], [0.75, flower.color]] as const) lotusPetal(ctx, r * 1.05, r * 0.42, tilt * open, color)
+      lotusPetal(ctx, r * 1.15, r * 0.45, -0.32 * open, flower.color)
+      lotusPetal(ctx, r * 1.15, r * 0.45, 0.32 * open, flower.color)
+      lotusPetal(ctx, r * 1.2, r * 0.4, 0, flower.accent)
+      ctx.beginPath()
+      ctx.ellipse(0, -r * 0.25, r * 0.28, r * 0.14, 0, 0, Math.PI * 2)
+      ctx.fillStyle = flower.center
+      ctx.fill()
+      break
+    }
+    case 'lotus-bud':
+      ctx.scale(pop, pop)
+      lotusPetal(ctx, r * 1.6, r * 0.6, 0, flower.color)
+      lotusPetal(ctx, r * 1.3, r * 0.45, -0.25, flower.accent)
+      lotusPetal(ctx, r * 1.3, r * 0.45, 0.25, flower.accent)
+      break
+    case 'blossom':
+      ctx.rotate(flower.rotation - (1 - grown) * 0.7)
+      ctx.scale(pop, pop)
+      drawPetals(ctx, 5, r, r * 0.42, flower.color, 0)
+      ctx.beginPath()
+      ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2)
+      ctx.fillStyle = flower.center
+      ctx.fill()
+      ctx.fillStyle = '#f7e08a'
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2
+        ctx.beginPath()
+        ctx.arc(Math.cos(angle) * r * 0.42, Math.sin(angle) * r * 0.42, Math.max(1, r * 0.07), 0, Math.PI * 2)
+        ctx.fill()
+      }
+      break
+    case 'bamboo-tip':
+      ctx.rotate(flower.rotation)
+      ctx.scale(pop, pop)
+      for (const [angle, length] of [[-0.55, 1], [0.15, 1.15], [0.7, 0.9]] as const) {
+        drawBlade(ctx, { x: 0, y: 0, angle, length: r * length, width: r * length * 0.17, color: angle > 0 ? flower.color : '#6b9a3c', side: angle > 0 ? 1 : -1, shape: 'blade', bornAt: 0 })
+      }
+      break
+    case 'panicle': {
+      ctx.scale(pop, pop)
+      const lean = Math.cos(flower.rotation) >= 0 ? 1 : -1
+      drawGrains(ctx, r, lean, flower.color, flower.accent, 11)
+      break
+    }
+    case 'tuft': {
+      // A clump of young rice: three stalks rising from where the drum was struck, ears nodding.
+      const height = r * pop
+      for (const [dx, lean, k] of [[-6, -1, 0.85], [0, 1, 1], [6, 1, 0.75]] as const) {
+        const top = { x: dx * 2.2 + lean * height * 0.15, y: -height * k }
+        ctx.beginPath()
+        ctx.moveTo(dx, 0)
+        ctx.quadraticCurveTo(dx, -height * k * 0.6, top.x, top.y)
+        ctx.strokeStyle = '#8ea64a'
+        ctx.lineWidth = 2.6
+        ctx.stroke()
+        ctx.save()
+        ctx.translate(top.x, top.y + height * 0.22)
+        drawGrains(ctx, height * 0.45, lean, flower.color, flower.accent, 7)
+        ctx.restore()
+      }
+      break
+    }
   }
   ctx.restore()
+}
+
+function drawNodes(ctx: Ctx, plant: Plant) {
+  ctx.lineCap = 'round'
+  for (const node of plant.nodes) {
+    const nx = Math.cos(node.angle + Math.PI / 2) * node.width * 0.62
+    const ny = Math.sin(node.angle + Math.PI / 2) * node.width * 0.62
+    ctx.beginPath()
+    ctx.moveTo(node.x - nx, node.y - ny)
+    ctx.lineTo(node.x + nx, node.y + ny)
+    ctx.strokeStyle = '#557a2e'
+    ctx.lineWidth = 3
+    ctx.stroke()
+    ctx.beginPath()
+    ctx.moveTo(node.x - nx * 0.7 + Math.cos(node.angle) * 3, node.y - ny * 0.7 + Math.sin(node.angle) * 3)
+    ctx.lineTo(node.x + nx * 0.7 + Math.cos(node.angle) * 3, node.y + ny * 0.7 + Math.sin(node.angle) * 3)
+    ctx.strokeStyle = 'rgba(232, 240, 190, 0.6)'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+  }
 }
 
 /** Draws one plant as it looks `age` ms after its stroke started. */
 export function drawPlant(ctx: Ctx, plant: Plant, age: number) {
   drawStem(ctx, plant)
+  drawNodes(ctx, plant)
   for (const leaf of plant.leaves) drawLeaf(ctx, leaf, progress(age, leaf.bornAt))
-  if (plant.flower) drawFlower(ctx, plant.flower, progress(age, plant.flower.bornAt))
-  for (const fly of plant.fireflies) {
-    const grown = progress(age, fly.bornAt)
-    if (grown <= 0) continue
-    const reach = fly.radius * 7
-    const glow = ctx.createRadialGradient(fly.x, fly.y, 0, fly.x, fly.y, reach)
-    glow.addColorStop(0, `${fly.color}ff`)
-    glow.addColorStop(0.25, `${fly.color}88`)
-    glow.addColorStop(1, `${fly.color}00`)
-    ctx.globalAlpha = grown
-    ctx.fillStyle = glow
-    ctx.fillRect(fly.x - reach, fly.y - reach, reach * 2, reach * 2)
-    ctx.beginPath()
-    ctx.arc(fly.x, fly.y, fly.radius * 0.8, 0, Math.PI * 2)
-    ctx.fillStyle = '#fff6c8'
-    ctx.fill()
-    ctx.globalAlpha = 1
-  }
+  for (const flower of plant.flowers) drawFlower(ctx, flower, progress(age, flower.bornAt))
 }
 
 export function drawCursor(ctx: Ctx, cursor: Cursor) {

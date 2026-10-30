@@ -1,4 +1,5 @@
-import type { PaletteId, Stroke } from './types'
+import type { InstrumentId } from '../music/instruments'
+import type { Stroke } from './types'
 
 export const MAX_POINTS = 20_000
 /** Points closer than this to the previous one are jitter and are dropped. */
@@ -13,7 +14,7 @@ export type EditorState = {
 }
 
 export type EditorAction =
-  | { type: 'begin'; id: string; seed: number; palette: PaletteId; point: { x: number; y: number }; startedAt: number }
+  | { type: 'begin'; id: string; seed: number; instrument: InstrumentId; point: { x: number; y: number }; startedAt: number }
   | { type: 'extend'; point: { x: number; y: number }; elapsed: number }
   | { type: 'end' }
   | { type: 'undo' }
@@ -39,7 +40,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const base = commit(state)
       if (countPoints(base.strokes) >= MAX_POINTS) return { ...base, limitReached: true }
       const point = { x: round(action.point.x), y: round(action.point.y), t: 0 }
-      return { ...base, current: { id: action.id, palette: action.palette, seed: action.seed, startedAt: action.startedAt, points: [point] } }
+      return { ...base, current: { id: action.id, instrument: action.instrument, seed: action.seed, startedAt: action.startedAt, points: [point] } }
     }
     case 'extend': {
       const current = state.current

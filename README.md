@@ -2,32 +2,35 @@
 
 > *Mỗi chuyển động nhỏ có thể nuôi dưỡng một điều tốt đẹp.*
 
-Trải nghiệm nghệ thuật tương tác cho triển lãm: người xem đưa bàn tay trước webcam, **chụm ngón cái và ngón trỏ để vẽ**, tách ngón để nhấc bút. Mỗi nét vẽ mọc thành thân cây, lá và hoa. Tác phẩm được lưu trên máy, phát lại được quá trình sáng tác và xuất ảnh PNG Full HD. Ứng dụng chạy hoàn toàn trên thiết bị và dùng được **offline** sau khi chuẩn bị.
+**Chơi nhạc cụ cổ truyền Việt Nam bằng đôi tay trong không trung** — mỗi nốt nhạc mọc thành một chi tiết của khu vườn quê. Dự thi mảng **SICT AI-Art Challenge** (nhóm *Sản phẩm & Giải pháp AI Tương tác*). Chạy hoàn toàn trên trình duyệt, dùng được **offline**.
+
+| Nhạc cụ | Chơi bằng tay (hoặc chuột) | Mọc thành |
+|---|---|---|
+| **Đàn bầu** | chụm để gảy, nâng/hạ tay để luyến | hoa sen — mỗi nốt luyến một lá sen, buông tay sen nở |
+| **Sáo trúc** | chụm giữ để thổi, tay lên xuống theo giai điệu | cây tre — mỗi nốt một chùm lá tre |
+| **Đàn tranh** (16 dây) | chạm từng dây hoặc lướt ngang để rải | cành đào — mỗi dây một bông đào |
+| **Trống cơm** | chụm nhanh: nửa dưới “tùng”, nửa trên “tình” | bông lúa — mỗi tiếng trống một khóm lúa |
+
+Cao độ theo **thang ngũ cung hò – xự – xang – xê – cống** (tay càng cao nốt càng cao); tên nốt hiện lên khi chơi. Mỗi nhạc cụ có **giới thiệu**, **cách chơi**, **bài tập 3 bước tự đánh dấu** và một **tác phẩm mẫu** (*Gió đồng*, *Chiều quê*, *Mưa xuân*, *Hội làng*) phát lại cùng khu vườn. Tác phẩm mẫu do nhóm biên soạn trên thang ngũ cung; âm thanh nhạc cụ được **tổng hợp mô phỏng** (Web Audio), không phải bản thu nhạc cụ thật.
 
 ## AI làm gì, thuật toán làm gì
 
 | Phần | Công nghệ | Vai trò |
 |---|---|---|
-| **AI nhận diện bàn tay** | [MediaPipe Hand Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker) (mạng nơ-ron, chạy bằng WebAssembly trong Web Worker) | Từ mỗi khung hình webcam tìm 21 điểm khớp của bàn tay. Khung camera nhỏ hiển thị đúng 21 điểm AI “nhìn thấy”. |
-| **Hiểu cử chỉ** | Thuật toán của dự án (`src/tracking/gesture.ts`) | Tỷ lệ khoảng cách ngón cái–ngón trỏ / độ rộng lòng bàn tay → đặt bút (< 0,28), nhấc bút (> 0,42), làm mượt, xử lý mất tay. |
-| **Tạo hình khu vườn** | Thuật toán sinh hình theo *seed* (`src/artwork/plant.ts`) | Thân dày khi đi chậm, mảnh khi đi nhanh; tối đa 20 lá mọc so le; hoa nở khi nhấc tay; đom đóm trong bảng màu đêm. **Không dùng AI sinh ảnh.** |
+| **AI nhận diện bàn tay** | [MediaPipe Hand Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker) (mạng nơ-ron, WebAssembly trong Web Worker) | Mỗi khung hình webcam → 21 điểm khớp. Khung camera nhỏ hiển thị đúng 21 điểm AI “nhìn thấy”. |
+| **Cử chỉ → động tác chơi đàn** | `src/tracking/gesture.ts`, `src/music/score.ts` | Chụm/nhả (0,28/0,42 × lòng bàn tay), độ cao tay → nốt ngũ cung, lướt ngang → rải dây; nốt chỉ vang khi tay dừng ≥ 40 ms. |
+| **Âm thanh** | `src/music/audio.ts` (Web Audio) | Đàn bầu (âm bồi, luyến, vibrato), sáo (có tiếng hơi), đàn tranh (Karplus–Strong), trống (tùng/tình). |
+| **Khu vườn** | `src/artwork/plant.ts` | Mỗi nốt → lá/hoa theo loài cây của nhạc cụ; tái lập theo seed nên phát lại và ảnh xuất trùng nhau. **Không dùng AI sinh ảnh.** |
 
-Nhận diện tay hay vẽ bằng webcam không phải phát minh mới; điểm riêng của dự án là **quá trình đồng sáng tác bằng chuyển động**, ngôn ngữ hình ảnh thực vật và câu chuyện *Gieo mầm*.
+## Tính năng khác
 
-## Tính năng
-
-- Một bàn tay, nhãn trạng thái rõ ràng: **Đưa tay vào khung → Sẵn sàng → Đang vẽ**; khung nét đứt trên camera là vùng điều khiển.
-- Chế độ chuột/cảm ứng đi qua cùng luồng tạo nét — thử được ngay khi chưa bật camera.
-- Ba bảng màu **Vườn xuân**, **Hoàng hôn**, **Đêm đom đóm** (đổi bảng màu chỉ ảnh hưởng nét tiếp theo).
-- Chụm tại chỗ để gieo một bông hoa nhỏ.
-- Hoàn tác / khôi phục theo cả nét, **Làm lại** (có xác nhận), toàn màn hình.
-- Thư viện trên máy: tự lưu sau 1 giây, mở lại, đổi tên, xóa; tự mở lại khu vườn gần nhất.
-- **Phát lại** theo thời gian thật của từng nét (tạm dừng, bắt đầu lại, 1×/2×), không cần camera.
-- **Xuất PNG 1920 × 1080** bằng cùng bộ dựng hình — ảnh cuối của phát lại khớp từng điểm ảnh với PNG.
-- Ba **vườn mẫu** để giới thiệu nhanh.
-- Cảnh báo ánh sáng yếu; hiển thị tốc độ AI (lần/giây, ms/khung hình).
-- **PWA offline** có kiểm tra thật: chỉ báo *Sẵn sàng dùng offline* khi service worker đã điều khiển trang **và** xác nhận đủ từng tài nguyên (HTML, JS, CSS, Worker, model `.task`, WASM) trong cache. Thiếu thì báo và có nút **Thử lại** để tải bù.
-- Cập nhật phiên bản cần người dùng bấm; khu vườn đang mở được lưu và mở lại sau cập nhật.
+- Nhãn trạng thái tay: **Đưa tay vào khung → Sẵn sàng → Đang vẽ**; chế độ chuột/cảm ứng đi chung luồng.
+- Hoàn tác / khôi phục theo nét, **Làm lại** (có xác nhận), toàn màn hình, tắt/bật âm thanh.
+- Thư viện trên máy: tự lưu 1 giây, mở lại, đổi tên, xóa; tự mở lại khu vườn gần nhất.
+- **Phát lại** có âm thanh theo đúng thời gian chơi (tạm dừng, bắt đầu lại, 1×/2×); nhiều nhạc cụ trong một khu vườn thành bản hòa tấu.
+- **Xuất PNG 1920 × 1080** — khớp từng điểm ảnh với khung cuối của phát lại.
+- Cảnh báo thiếu sáng, hiển thị tốc độ AI, xử lý mất camera / từ chối quyền camera.
+- **PWA offline có kiểm tra thật** (từng tệp trong cache), cập nhật phiên bản cần người dùng bấm.
 
 Phím tắt: `Ctrl+Z` hoàn tác · `Ctrl+Y` khôi phục · `F` toàn màn hình · `Space` tạm dừng/tiếp tục phát lại · `Esc` thoát phát lại.
 
@@ -59,7 +62,7 @@ Nếu chỉ báo là *Chưa đủ tài nguyên offline*, kết nối mạng rồ
 
 ## Riêng tư
 
-- Hình ảnh camera chỉ được xử lý trong trình duyệt; **không tải lên, không lưu**. Chỉ lưu các nét đã làm mượt (toạ độ, thời điểm, bảng màu, seed) vào IndexedDB của trình duyệt.
+- Hình ảnh camera chỉ được xử lý trong trình duyệt; **không tải lên, không lưu**. Chỉ lưu các nét đã làm mượt (toạ độ, thời điểm, nhạc cụ, seed) vào IndexedDB của trình duyệt.
 - Không backend, không tài khoản, không API trả phí, không khóa API.
 - Model, WASM và mọi tài nguyên được phục vụ cùng website (không CDN).
 - `@mediapipe/tasks-vision` 1.2.0 có sẵn cơ chế gửi thống kê sử dụng (loại tác vụ, thời gian xử lý — không phải hình ảnh) tới `odml.pa.googleapis.com` mỗi 60 giây. Dự án chặn ở hai lớp:
@@ -72,7 +75,7 @@ Nếu chỉ báo là *Chưa đủ tài nguyên offline*, kết nối mạng rồ
 
 ```sh
 npm run lint
-npm run test           # Vitest: cử chỉ, cây/lá/hoa, editor, lưu trữ, tự lưu, phát lại, offline, mẫu
+npm run test           # Vitest: cử chỉ, nốt nhạc, tác phẩm mẫu, bài tập, cây theo nhạc cụ, lưu trữ, phát lại, offline
 npm run typecheck
 npm run build
 npm run check:release  # kiểm tra bản phát hành (kích thước, SHA-256, WASM, khóa API, host ngoài, CSP, precache)
@@ -80,9 +83,13 @@ npm run test:e2e       # Playwright trên bản production (vite preview)
 npm run release        # chạy tất cả theo thứ tự trên
 ```
 
-E2E chạy **model thật**: Chromium dùng webcam giả phát ảnh bàn tay thật (`e2e/fixtures`), nên kiểm tra được cả Worker, WASM, model và luồng camera. Các tình huống được kiểm: nhận diện tay và con trỏ, không có tay, từ chối quyền camera, tắt camera giải phóng camera/Worker, vẽ bằng chuột, hoàn tác/khôi phục/làm lại, phím tắt, tự lưu và mở lại sau tải lại trang, thư viện (mở/đổi tên/xóa), phát lại khớp PNG, lưu trữ lỗi vẫn xuất PNG, phát lại dừng nhận diện, vườn mẫu, **khởi động lại trình duyệt khi mất mạng** rồi dùng mọi chức năng, cache thiếu được phát hiện và sửa, cập nhật phiên bản giữ khu vườn, mất camera giữa chừng, chuyển tab khi phát lại, và quyền riêng tư trong 60 giây.
+E2E chạy **model thật**: Chromium dùng webcam giả phát ảnh bàn tay thật (`e2e/fixtures`), nên kiểm tra được cả Worker, WASM, model và luồng camera. Các tình huống được kiểm: 4 nhạc cụ phát tiếng và hiện tên nốt, bài tập từng bước, tác phẩm mẫu, nhận diện tay và con trỏ, không có tay, từ chối quyền camera, tắt camera giải phóng camera/Worker, vẽ bằng chuột, hoàn tác/khôi phục/làm lại, phím tắt, tự lưu và mở lại sau tải lại trang, thư viện (mở/đổi tên/xóa), phát lại khớp PNG, lưu trữ lỗi vẫn xuất PNG, phát lại dừng nhận diện, **khởi động lại trình duyệt khi mất mạng** rồi dùng mọi chức năng, cache thiếu được phát hiện và sửa, cập nhật phiên bản giữ khu vườn, mất camera giữa chừng, chuyển tab khi phát lại, và quyền riêng tư trong 60 giây.
 
 Kiểm thử tự động **không thay thế** thử nghiệm với webcam thật: trước khi trình diễn hãy thử trên laptop thật với Chrome và Edge, trong điều kiện ánh sáng của phòng triển lãm, và ghi lại số *lần/giây* hiển thị trên thanh trên.
+
+## Xem trực tuyến (GitHub Pages)
+
+Mỗi lần có code mới trên `main`, workflow `.github/workflows/pages.yml` chạy test, build với `BASE_PATH=/IStar/` và đưa lên **https://vantruonghaui2007-del.github.io/IStar/** (cần bật một lần: *Settings → Pages → Source: GitHub Actions*). GitHub Pages không gửi được header CSP; lớp chặn mạng trong Worker vẫn hoạt động.
 
 ## Phát hành (Cloudflare Pages)
 
@@ -97,6 +104,7 @@ npm run deploy                  # Direct Upload thư mục dist lên dự án "m
 ## Giới hạn đã biết
 
 - Một bàn tay, một người. Ánh sáng yếu hoặc ngược sáng làm nhận diện kém (ứng dụng sẽ nhắc).
+- Âm thanh nhạc cụ là mô phỏng tổng hợp; tác phẩm mẫu do nhóm biên soạn (chưa phải bản dân ca gốc).
 - Ưu tiên Chrome/Edge trên laptop. Trình duyệt không có WebAssembly SIMD không chạy được nhận diện (vẫn vẽ bằng chuột). Safari và điện thoại chưa được kiểm thử đầy đủ.
 - Tối đa 20.000 điểm mỗi tác phẩm; thư viện nằm trong trình duyệt của máy đó (không đồng bộ).
 - Hiệu năng đo trong môi trường CI không GPU: 11–14 lần nhận diện/giây, 55–80 ms/khung hình. Laptop thật thường nhanh hơn; mục tiêu ≥ 15 lần/giây cần được đo lại trên máy trình diễn.
@@ -106,7 +114,8 @@ npm run deploy                  # Direct Upload thư mục dist lên dự án "m
 ```
 src/
   tracking/   webcam, Worker MediaPipe, giao thức, bộ điều khiển cử chỉ, chặn mạng
-  artwork/    kiểu dữ liệu, bảng màu, cây/lá/hoa theo seed, editor, bộ dựng hình, phát lại, vườn mẫu
+  music/      thang ngũ cung, nhạc cụ, cử chỉ → nốt, âm thanh Web Audio, bộ phát, bài tập, tác phẩm mẫu
+  artwork/    kiểu dữ liệu, cây theo nhạc cụ (sen, tre, đào, lúa), editor, bộ dựng hình, phát lại
   storage/    IndexedDB (có nâng cấp dữ liệu cũ), tự lưu
   offline/    service worker, kiểm tra cache, cập nhật
   studio/     giao diện React (canvas, camera, thư viện, phát lại…)
@@ -124,4 +133,4 @@ Luồng dữ liệu: **Webcam → ImageBitmap → Worker MediaPipe (≤ 20 lần
 - Model và runtime MediaPipe theo giấy phép Apache-2.0 (xem model card và kho mã MediaPipe).
 - Ảnh bàn tay dùng làm webcam giả trong `e2e/fixtures` lấy từ dữ liệu kiểm thử công khai của MediaPipe — xem `e2e/fixtures/README.md`.
 
-Tài liệu: [kế hoạch](docs/superpowers/plans/2026-10-30-mua-net-ai-gieo-mam.md) · [nhật ký & kết quả kiểm thử](docs/superpowers/implementation-plan.md) · [thuyết minh](docs/thuyet-minh.md) · [kịch bản video](docs/kich-ban-video.md) · [tác phẩm mẫu](docs/samples/).
+Tài liệu: [kế hoạch](docs/superpowers/plans/2026-10-30-mua-net-ai-gieo-mam.md) · [nhật ký & kết quả kiểm thử](docs/superpowers/implementation-plan.md) · [thuyết minh](docs/thuyet-minh.md) · [kịch bản video](docs/kich-ban-video.md) · [ảnh tác phẩm mẫu](docs/samples/).

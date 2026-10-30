@@ -1,11 +1,11 @@
-// Exports the three sample gardens as PNG through the app's own "Xuất PNG"
+// Exports the four instrument demo pieces as PNG through the app's own "Xuất PNG"
 // button. Needs a production build: npm run build && node scripts/render-samples.mjs
 import { spawn } from 'node:child_process'
 import { mkdir } from 'node:fs/promises'
 import { chromium } from '@playwright/test'
 
 const PORT = 4190
-const names = ['Mầm đầu tiên', 'Vườn xuân rộn rã', 'Đêm đom đóm']
+const names = ['Gió đồng', 'Chiều quê', 'Mưa xuân', 'Hội làng']
 const slug = name => name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').replace(/[^a-z0-9]+/gi, '-').toLowerCase()
 
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' })

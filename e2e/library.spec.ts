@@ -24,7 +24,7 @@ test('the library opens, renames and deletes artworks', async ({ page }) => {
   await expect(library).toContainText('Vườn của Lan')
 
   await page.getByRole('button', { name: 'Tác phẩm mới' }).click()
-  await expect(page.getByTestId('garden-stats')).toHaveText('0 cây · 0 lá · 0 hoa')
+  await expect(page.getByTestId('garden-stats')).toHaveAttribute('data-strokes', '0')
   await drag(page, [0.5, 0.9], [0.6, 0.2])
   await savedLabel(page)
   await expect(library.locator('.library-row')).toHaveCount(2)
@@ -53,7 +53,7 @@ test('replay pauses, restarts and ends on exactly the exported picture, without 
   })
   await page.goto('/')
   await drag(page, [0.2, 0.85], [0.45, 0.25], 30)
-  await page.getByRole('button', { name: 'Đêm đom đóm', exact: true }).click()
+  await page.getByRole('radio', { name: /Sáo trúc/ }).click()
   await drag(page, [0.7, 0.9], [0.55, 0.3], 30)
   await page.waitForTimeout(800)
 
@@ -103,7 +103,7 @@ test('when storage fails the garden stays on screen and PNG export still works',
   await drag(page, [0.2, 0.85], [0.4, 0.3])
   await expect(page.getByTestId('save-state')).toHaveText('Chưa lưu được', { timeout: 5_000 })
   await expect(page.getByRole('status')).toContainText('Bộ nhớ trình duyệt đã đầy')
-  await expect(page.getByTestId('garden-stats')).toHaveText(/^1 cây/)
+  await expect(page.getByTestId('garden-stats')).toHaveAttribute('data-strokes', '1')
 
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: /Xuất PNG/ }).click()
@@ -115,14 +115,14 @@ test('when storage fails the garden stays on screen and PNG export still works',
   expect(png.readUInt32BE(20)).toBe(1080)
 })
 
-test('sample gardens open as copies that can be replayed and exported', async ({ page }) => {
+test('a demo piece opens as a copy, plays with its garden, and is not added to the library', async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: /✿ Đêm đom đóm/ }).click()
-  await expect(page.getByLabel('Tên tác phẩm')).toHaveValue('Đêm đom đóm')
-  await expect(page.getByTestId('garden-stats')).toHaveText(/^6 cây · \d+ lá · 9 hoa$/)
-  await page.getByRole('button', { name: /^▷ Phát lại$/ }).click()
+  await page.getByRole('button', { name: /✿ Hội làng/ }).click()
+  await expect(page.getByLabel('Tên tác phẩm')).toHaveValue('Hội làng')
+  await expect(page.getByRole('radio', { name: /Trống cơm/ })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByTestId('replay-state')).toHaveText('Đang phát lại')
   await page.getByRole('button', { name: 'Tốc độ 2×' }).click()
   await expect(page.getByTestId('replay-state')).toHaveText('Phát lại xong', { timeout: 30_000 })
-  // Viewing a sample does not add it to the visitor's library.
+  await expect(page.getByTestId('garden-stats')).toHaveText(/^46 nốt · /)
   await expect(page.getByTestId('library').locator('.library-row')).toHaveCount(0)
 })

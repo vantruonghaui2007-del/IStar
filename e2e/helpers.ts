@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test'
 
 /** Drags across the canvas from `from` to `to`, given as fractions of its size. */
 export async function drag(page: Page, from: [number, number], to: [number, number], steps = 24) {
+  await page.getByTestId('art-canvas').scrollIntoViewIfNeeded()
   const box = (await page.getByTestId('art-canvas').boundingBox())!
   const at = (t: number) => [box.x + box.width * (from[0] + (to[0] - from[0]) * t), box.y + box.height * (from[1] + (to[1] - from[1]) * t)] as const
   await page.mouse.move(...at(0))

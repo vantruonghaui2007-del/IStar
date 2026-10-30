@@ -2,16 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } 
 import './App.css'
 import { MAX_POINTS, countPoints } from './artwork/editor'
 import { useOffline } from './offline/useOffline'
-import { PALETTES, PALETTE_IDS } from './artwork/palettes'
 import { grownPlant } from './artwork/plant'
 import { renderArtwork, type Cursor, type SceneItem } from './artwork/render'
-import { sampleArtworks } from './artwork/samples'
-import { CANVAS_HEIGHT, CANVAS_WIDTH, type PaletteId } from './artwork/types'
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from './artwork/types'
+import { AudioEngine } from './music/audio'
+import { INSTRUMENTS, INSTRUMENT_IDS, type InstrumentId } from './music/instruments'
+import { pieceArtwork } from './music/pieces'
+import { MusicPlayer } from './music/player'
+import { noteLabel } from './music/scale'
+import { scoreOf } from './music/score'
+import { TUTORIALS } from './music/tutorial'
 import { ARTWORK_VERSION, ArtworkRepository, DEFAULT_ARTWORK_NAME, StorageError, type Artwork } from './storage/artworks'
 import { Autosaver, type SaveState } from './storage/autosave'
 import { CameraPreview } from './studio/CameraPreview'
 import { EditorStore, useEditor } from './studio/editorStore'
 import { GardenCanvas } from './studio/GardenCanvas'
+import { InstrumentPanel, type TutorialState } from './studio/InstrumentPanel'
 import { Library } from './studio/Library'
 import { PinchDemo } from './studio/PinchDemo'
 import { ReplayBar } from './studio/ReplayBar'
@@ -24,11 +30,11 @@ import type { HandSample } from './tracking/protocol'
 
 const DEFAULT_NAME = DEFAULT_ARTWORK_NAME
 const LAST_ARTWORK_KEY = 'mua-net-ai:last-artwork'
-const INTRO = 'Bấm Bắt đầu để bật camera, hoặc kéo chuột trên khu vườn để thử ngay.'
+const INTRO = 'Chọn một nhạc cụ, bấm Bắt đầu để bật camera — hoặc kéo chuột trên khu vườn để chơi thử ngay.'
 const newId = (): string => crypto.randomUUID()
 
 const repository = new ArtworkRepository()
-const SAMPLES = sampleArtworks()
+const PIECES = INSTRUMENT_IDS.map(pieceArtwork)
 const timeFormat = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' })
 const remember = (id: string | null) => {
   try {
@@ -56,12 +62,44 @@ export default function App() {
   const drawing = useEditor(store, state => state.current !== null)
   const limitReached = useEditor(store, state => state.limitReached)
 
-  const [palette, setPalette] = useState<PaletteId>('vuon-xuan')
-  const paletteRef = useRef(palette)
+  const [instrument, setInstrument] = useState<InstrumentId>('dan-bau')
+  const instrumentRef = useRef(instrument)
   useEffect(() => {
-    paletteRef.current = palette
-  }, [palette])
-  const input = useMemo(() => new StrokeInput(store, () => paletteRef.current), [store])
+    instrumentRef.current = instrument
+  }, [instrument])
+  const input = useMemo(() => new StrokeInput(store, () => instrumentRef.current), [store])
+
+  // ——— Sound ———
+  const engine = useMemo(() => new AudioEngine(), [])
+  const player = useMemo(() => new MusicPlayer(engine), [engine])
+  const [audioState, setAudioState] = useState<string>('off')
+  const [muted, setMuted] = useState(false)
+  const [note, setNote] = useState<{ text: string; key: number } | null>(null)
+  const noteTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  useEffect(() => {
+    engine.onStateChange = setAudioState
+    player.onNote = (played, event) => {
+      if (!('degree' in event)) return
+      const label = played === 'trong-com' ? (event.degree >= 5 ? 'Tình' : 'Tùng') : noteLabel(event.degree).name
+      setNote({ text: `${INSTRUMENTS[played].name} · ${label}`, key: performance.now() })
+      clearTimeout(noteTimer.current)
+      noteTimer.current = setTimeout(() => setNote(null), 1400)
+    }
+    // Browsers only allow sound after a user gesture.
+    const unlock = () => engine.unlock()
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('keydown', unlock)
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
+  }, [engine, player])
+  const onScene = useCallback((items: SceneItem[]) => player.sync(items), [player])
+  const toggleMute = () => {
+    engine.unlock()
+    engine.setMuted(!muted)
+    setMuted(!muted)
+  }
   const controller = useMemo(() => new PinchController(), [])
 
   const [notice, setNotice] = useState(INTRO)
@@ -231,8 +269,8 @@ export default function App() {
     setNotice(`Đã mở “${artwork.name}”.`)
   }
 
-  /** Opens a fresh copy of a sample garden; it is saved only once the visitor changes it. */
-  const openSample = async (sample: Artwork) => {
+  /** Opens a fresh copy of an instrument's demo piece and plays it; saved only once the visitor changes it. */
+  const openPiece = async (sample: Artwork) => {
     replay.stop()
     interrupt()
     await autosaver.flush()
@@ -242,8 +280,40 @@ export default function App() {
     store.dispatch({ type: 'load', strokes: sample.strokes })
     dirty.current = false
     setSaveState({ status: 'idle' })
-    setNotice(`Đang xem vườn mẫu “${sample.name}”. Bấm Phát lại để xem cách nó được vẽ, hoặc vẽ tiếp để tạo bản của bạn.`)
+    const played = sample.strokes[0]?.instrument
+    if (played) setInstrument(played)
+    engine.unlock()
+    pause()
+    replay.start(sample.strokes)
+    setPlayingPiece(played ?? null)
+    setNotice(`Đang phát tác phẩm “${sample.name}”${played ? ` — ${INSTRUMENTS[played].name}` : ''}. Xem khu vườn mọc theo tiếng nhạc; thoát phát lại để chơi tiếp trên bản này.`)
   }
+
+  // ——— Instrument & practice ———
+  const [tutorial, setTutorial] = useState<TutorialState>(null)
+  const [playingPiece, setPlayingPiece] = useState<InstrumentId | null>(null)
+  useEffect(() => {
+    if (!replay.active) setPlayingPiece(null)
+  }, [replay.active])
+  const chooseInstrument = (id: InstrumentId) => {
+    engine.unlock()
+    setInstrument(id)
+    if (tutorial && tutorial.instrument !== id) setTutorial(null)
+    setNotice(`${INSTRUMENTS[id].name}: ${INSTRUMENTS[id].howTo[0]}`)
+  }
+  const practise = (start: boolean) => {
+    engine.unlock()
+    if (start && replay.active) stopReplay()
+    setTutorial(start ? { instrument, step: 0, since: store.getState().strokes.length } : null)
+  }
+  useEffect(() => {
+    if (!tutorial) return
+    const steps = TUTORIALS[tutorial.instrument]
+    if (tutorial.step >= steps.length) return
+    const since = Math.min(tutorial.since, strokes.length)
+    if (steps[tutorial.step].check(strokes.slice(since))) setTutorial({ ...tutorial, step: tutorial.step + 1, since: strokes.length })
+    else if (since !== tutorial.since) setTutorial({ ...tutorial, since })
+  }, [strokes, tutorial])
 
   const newArtwork = async () => {
     replay.stop()
@@ -363,6 +433,7 @@ export default function App() {
 
   // ——— Camera ———
   const startCamera = () => {
+    engine.unlock()
     if (replay.active) stopReplay()
     setNotice('Đang mở camera và tải AI nhận diện tay…')
     void tracking.start()
@@ -402,7 +473,11 @@ export default function App() {
   const lowLight = handMode && tracking.stats?.luma != null && isLowLight(tracking.stats.luma)
   const garden = useMemo(() => {
     const plants = strokes.map(grownPlant)
-    return { trees: plants.filter(plant => plant.segments.length > 0).length, leaves: plants.reduce((sum, plant) => sum + plant.leaves.length, 0), flowers: plants.filter(plant => plant.flower).length }
+    return {
+      notes: strokes.reduce((sum, stroke) => sum + scoreOf(stroke, true).filter(event => event.kind !== 'release' && event.kind !== 'glide').length, 0),
+      blooms: plants.reduce((sum, plant) => sum + plant.flowers.length + plant.leaves.length, 0),
+      instruments: new Set(strokes.map(stroke => stroke.instrument)).size,
+    }
   }, [strokes])
   const points = countPoints(strokes)
 
@@ -436,6 +511,9 @@ export default function App() {
             </button>
           )}
         </div>
+        <button type="button" className="icon-button sound" onClick={toggleMute} aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'} aria-pressed={!muted} title="Âm thanh" data-audio={audioState}>
+          {muted ? '🔇' : '🔊'}
+        </button>
         <button type="button" className="icon-button" onClick={toggleFullscreen} aria-label="Toàn màn hình" title="Toàn màn hình (F)">
           ⛶
         </button>
@@ -458,6 +536,7 @@ export default function App() {
           <span className="eyebrow">TRẢI NGHIỆM TƯƠNG TÁC · 01</span>
           <h1>Gieo mầm</h1>
           <p>Mỗi chuyển động nhỏ có thể nuôi dưỡng một điều tốt đẹp.</p>
+          <p className="intro-sub">Chơi đàn bầu, sáo trúc, đàn tranh, trống cơm bằng đôi tay — để tiếng nhạc của cha ông mọc thành khu vườn quê.</p>
         </div>
         <PinchDemo />
         <button type="button" className="start" onClick={cameraOn ? stopCamera : startCamera}>
@@ -467,27 +546,30 @@ export default function App() {
 
       <div className="studio">
         <aside className="guide">
+          <span className="section-label">NHẠC CỤ CỔ TRUYỀN</span>
+          <InstrumentPanel instrument={instrument} tutorial={tutorial} playingPiece={playingPiece} onSelect={chooseInstrument} onTutorial={practise} onPiece={id => void openPiece(PIECES[INSTRUMENT_IDS.indexOf(id)])} />
+
           <span className="section-label">CÁCH CHƠI</span>
           <ol className="steps">
             <li>
               <i>01</i>
               <div>
-                <b>Đưa tay vào khung</b>
-                <small>Bật camera, giữ cả bàn tay trong khung nét đứt.</small>
+                <b>Chọn nhạc cụ</b>
+                <small>Mỗi nhạc cụ mọc thành một loài cây: sen, tre, đào, lúa.</small>
               </div>
             </li>
             <li>
               <i>02</i>
               <div>
-                <b>Chụm ngón để vẽ</b>
-                <small>Chạm ngón cái vào ngón trỏ rồi di chuyển. Đi chậm cho thân dày, nhanh cho cành mảnh.</small>
+                <b>Đưa tay vào khung</b>
+                <small>Bấm Bắt đầu, giữ cả bàn tay trong khung nét đứt. Tay càng cao, nốt càng cao.</small>
               </div>
             </li>
             <li>
               <i>03</i>
               <div>
-                <b>Tách ngón để nở hoa</b>
-                <small>Mỗi nét kết thúc bằng một bông hoa. Chụm tại chỗ để gieo một bông nhỏ.</small>
+                <b>Chụm để chơi, thả để hoa nở</b>
+                <small>Chụm ngón cái và ngón trỏ để gảy, thổi hay gõ; mỗi nốt nhạc mọc thành lá, hoa.</small>
               </div>
             </li>
           </ol>
@@ -501,18 +583,6 @@ export default function App() {
             )}
           </div>
 
-          <span className="section-label">BẢNG MÀU</span>
-          <div className="palettes">
-            {PALETTE_IDS.map(id => (
-              <button key={id} type="button" className={`palette ${id === palette ? 'selected' : ''}`} aria-pressed={id === palette} onClick={() => setPalette(id)}>
-                <span className="swatches" style={{ background: `linear-gradient(90deg, ${PALETTES[id].stem} 33%, ${PALETTES[id].leaves[0]} 33% 66%, ${PALETTES[id].petals[0]} 66%)` }} />
-                {PALETTES[id].name}
-                {id === palette && <b aria-hidden="true">✓</b>}
-              </button>
-            ))}
-          </div>
-          <p className="palette-note">Bảng màu mới áp dụng cho những nét vẽ tiếp theo.</p>
-
           <div className="privacy">
             <span aria-hidden="true">♧</span>
             <span>Hình ảnh camera được AI xử lý ngay trên máy này — không tải lên máy chủ và không được lưu lại.</span>
@@ -521,8 +591,8 @@ export default function App() {
           <span className="section-label">THƯ VIỆN</span>
           <Library
             artworks={artworks}
-            samples={SAMPLES}
-            onOpenSample={sample => void openSample(sample)}
+            samples={PIECES}
+            onOpenSample={sample => void openPiece(sample)}
             currentId={artworkId}
             unavailable={libraryUnavailable}
             onNew={() => void newArtwork()}
@@ -535,20 +605,25 @@ export default function App() {
         <section className="art-area">
           <div className="art-top">
             <span>KHU VƯỜN CỦA BẠN</span>
-            <span className="garden-stats" data-testid="garden-stats">
-              {garden.trees} cây · {garden.leaves} lá · {garden.flowers} hoa
+            <span className="garden-stats" data-testid="garden-stats" data-strokes={strokes.length}>
+              {garden.notes} nốt · {garden.blooms} hoa lá · {garden.instruments} nhạc cụ
             </span>
             <span className={`mode ${hand}`} data-testid="hand-state">
               {handLabel}
             </span>
           </div>
           <div className="canvas-wrap">
-            <GardenCanvas store={store} cursor={cursor} override={sceneOverride} onFrame={onFrame} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} />
+            <GardenCanvas store={store} cursor={cursor} override={sceneOverride} onFrame={onFrame} onScene={onScene} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} />
             {strokes.length === 0 && !drawing && (
               <div className="canvas-caption">
                 <span className="seed" aria-hidden="true">✳</span>
                 <b>Khu vườn đang chờ bạn</b>
                 <small>{handMode ? 'Chụm ngón cái và ngón trỏ để gieo nét đầu tiên' : 'Kéo chuột để gieo nét đầu tiên'}</small>
+              </div>
+            )}
+            {note && (
+              <div className="note-badge" key={note.key} data-testid="note" aria-live="off">
+                ♪ {note.text}
               </div>
             )}
             {replay.active && <ReplayBar {...replay} onToggle={replay.toggle} onRestart={replay.restart} onSpeed={replay.setSpeed} onClose={stopReplay} />}
@@ -591,7 +666,7 @@ export default function App() {
         <span>
           Múa Nét AI <i>·</i> Gieo mầm
         </span>
-        <span>AI nhận diện bàn tay: MediaPipe Hand Landmarker · Cây, lá, hoa: thuật toán tạo hình theo seed</span>
+        <span>AI nhận diện bàn tay: MediaPipe Hand Landmarker · Âm thanh: tổng hợp Web Audio · Cây, hoa: thuật toán tạo hình</span>
         <span data-testid="app-version">Phiên bản {__APP_VERSION__}</span>
       </footer>
     </main>

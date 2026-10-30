@@ -1,17 +1,18 @@
 import { randomSeed } from '../artwork/random'
-import { CANVAS_HEIGHT, CANVAS_WIDTH, type PaletteId } from '../artwork/types'
+import { CANVAS_HEIGHT, CANVAS_WIDTH } from '../artwork/types'
+import type { InstrumentId } from '../music/instruments'
 import type { GestureEvent } from '../tracking/gesture'
 import type { EditorStore } from './editorStore'
 
 /** Hand and mouse both draw through here: canvas-normalized gesture events → editor actions. */
 export class StrokeInput {
   private readonly store: EditorStore
-  private readonly palette: () => PaletteId
+  private readonly instrument: () => InstrumentId
   private startedAt = 0
 
-  constructor(store: EditorStore, palette: () => PaletteId) {
+  constructor(store: EditorStore, instrument: () => InstrumentId) {
     this.store = store
-    this.palette = palette
+    this.instrument = instrument
   }
 
   handle = (event: GestureEvent) => {
@@ -21,7 +22,7 @@ export class StrokeInput {
         type: 'begin',
         id: crypto.randomUUID(),
         seed: randomSeed(),
-        palette: this.palette(),
+        instrument: this.instrument(),
         point: { x: event.point.x * CANVAS_WIDTH, y: event.point.y * CANVAS_HEIGHT },
         startedAt: Date.now(),
       })
