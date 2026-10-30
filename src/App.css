@@ -470,6 +470,9 @@
 .camera-preview video {
   transform: scaleX(-1);
 }
+.camera-preview canvas {
+  pointer-events: none;
+}
 .camera-caption {
   position: absolute;
   bottom: 0;
@@ -628,4 +631,69 @@ footer i {
   footer {
     flex-direction: column;
   }
+}
+
+/* ——— Library ——— */
+.library .palette {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+.library > .palette {
+  flex-direction: row;
+}
+.library-name {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.library .palette small {
+  margin-left: 0;
+}
+
+/* ——— Replay ——— */
+.replay-bar {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 999px;
+  background: #243a2de6;
+  color: #fff;
+  box-shadow: 0 6px 20px #1d2b2140;
+  width: min(560px, calc(100% - 28px));
+}
+.replay-bar button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 13px;
+  flex: none;
+}
+.replay-bar button:hover {
+  background: #ffffff22;
+}
+.replay-progress {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: #ffffff33;
+  overflow: hidden;
+}
+.replay-progress span {
+  display: block;
+  height: 100%;
+  background: #f0bf2e;
+}
+.replay-label {
+  font-size: 11px;
+  white-space: nowrap;
+  min-width: 84px;
 }

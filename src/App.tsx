@@ -5,20 +5,44 @@ import { PALETTES, PALETTE_IDS } from './artwork/palettes'
 import { grownPlant } from './artwork/plant'
 import { renderArtwork, type Cursor, type SceneItem } from './artwork/render'
 import { CANVAS_HEIGHT, CANVAS_WIDTH, type PaletteId } from './artwork/types'
-import { deleteArtwork, listArtworks, saveArtwork, type Artwork } from './storage/artworks'
+import { ARTWORK_VERSION, ArtworkRepository, DEFAULT_ARTWORK_NAME, StorageError, type Artwork } from './storage/artworks'
+import { Autosaver, type SaveState } from './storage/autosave'
 import { CameraPreview } from './studio/CameraPreview'
 import { EditorStore, useEditor } from './studio/editorStore'
 import { GardenCanvas } from './studio/GardenCanvas'
+import { Library } from './studio/Library'
 import { PinchDemo } from './studio/PinchDemo'
+import { ReplayBar } from './studio/ReplayBar'
 import { StrokeInput } from './studio/strokeInput'
 import { useHandTracking } from './studio/useHandTracking'
+import { useReplay } from './studio/useReplay'
 import { PinchController, type HandState } from './tracking/gesture'
 import { isLowLight } from './tracking/light'
 import type { HandSample } from './tracking/protocol'
 
-const DEFAULT_NAME = 'Khu vườn chưa đặt tên'
+const DEFAULT_NAME = DEFAULT_ARTWORK_NAME
+const LAST_ARTWORK_KEY = 'mua-net-ai:last-artwork'
 const INTRO = 'Bấm Bắt đầu để bật camera, hoặc kéo chuột trên khu vườn để thử ngay.'
 const newId = (): string => crypto.randomUUID()
+
+const repository = new ArtworkRepository()
+const timeFormat = new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' })
+const remember = (id: string | null) => {
+  try {
+    if (id) localStorage.setItem(LAST_ARTWORK_KEY, id)
+    else localStorage.removeItem(LAST_ARTWORK_KEY)
+  } catch {
+    // Private mode: the artwork simply isn't reopened next time.
+  }
+}
+const recall = () => {
+  try {
+    return localStorage.getItem(LAST_ARTWORK_KEY)
+  } catch {
+    return null
+  }
+}
+const storageMessage = (error: unknown) => (error instanceof StorageError ? error.message : new StorageError(error).message)
 
 const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
 
@@ -40,7 +64,10 @@ export default function App() {
   const [notice, setNotice] = useState(INTRO)
   const [name, setName] = useState(DEFAULT_NAME)
   const [artworkId, setArtworkId] = useState(newId)
+  const createdAt = useRef(Date.now())
   const [artworks, setArtworks] = useState<Artwork[]>([])
+  const [libraryUnavailable, setLibraryUnavailable] = useState(false)
+  const [saveState, setSaveState] = useState<SaveState>({ status: 'idle' })
   const [hand, setHand] = useState<HandState>('absent')
   const [cameraHidden, setCameraHidden] = useState(false)
 
@@ -49,6 +76,7 @@ export default function App() {
   const lastSample = useRef<HandSample | null>(null)
   const sceneOverride = useRef<(() => SceneItem[] | null) | null>(null)
   const mouseDrawing = useRef(false)
+  const replay = useReplay(sceneOverride)
 
   const onSample = useCallback(
     (sample: HandSample) => {
@@ -101,58 +129,159 @@ export default function App() {
   }, [limitReached])
 
   // ——— Library & saving ———
-  const refreshLibrary = useCallback(() => listArtworks().then(setArtworks), [])
+  const refreshLibrary = useCallback(async () => {
+    try {
+      setArtworks(await repository.list())
+      setLibraryUnavailable(false)
+    } catch {
+      setLibraryUnavailable(true)
+    }
+  }, [])
+
+  const autosaver = useMemo(
+    () =>
+      new Autosaver<Artwork>(
+        async artwork => {
+          if (artwork.strokes.length) await repository.save(artwork)
+          else await repository.remove(artwork.id)
+          remember(artwork.strokes.length ? artwork.id : null)
+          await refreshLibrary()
+        },
+        setSaveState,
+        1000,
+      ),
+    [refreshLibrary],
+  )
+  const snapshot = useCallback(
+    (): Artwork => ({ version: ARTWORK_VERSION, id: artworkId, name: name.trim() || DEFAULT_NAME, createdAt: createdAt.current, updatedAt: Date.now(), width: 1920, height: 1080, strokes }),
+    [artworkId, name, strokes],
+  )
+
+  // Reopen the garden that was open last time (e.g. after an app update reload).
+  const restored = useRef(false)
   useEffect(() => {
-    refreshLibrary().catch(() => setNotice('Không đọc được thư viện trên thiết bị này. Bạn vẫn vẽ và xuất PNG được.'))
-  }, [refreshLibrary])
+    if (restored.current) return
+    restored.current = true
+    void (async () => {
+      await refreshLibrary()
+      const id = recall()
+      if (!id) return
+      try {
+        const artwork = await repository.get(id)
+        if (!artwork || store.getState().strokes.length) return
+        setArtworkId(artwork.id)
+        setName(artwork.name)
+        createdAt.current = artwork.createdAt
+        store.dispatch({ type: 'load', strokes: artwork.strokes })
+        dirty.current = false
+        setNotice(`Đã mở lại “${artwork.name}” từ lần trước.`)
+      } catch {
+        // Library unavailable: start with an empty garden.
+      }
+    })()
+  }, [refreshLibrary, store])
 
-  const persist = useCallback(async () => {
-    const now = Date.now()
-    await saveArtwork({ id: artworkId, name: name.trim() || DEFAULT_NAME, createdAt: now, updatedAt: now, width: 1920, height: 1080, strokes })
-    await refreshLibrary()
-  }, [artworkId, name, strokes, refreshLibrary])
-
+  const dirty = useRef(false)
   useEffect(() => {
-    if (!strokes.length) return
-    const timer = window.setTimeout(() => {
-      persist()
-        .then(() => setNotice('Đã tự lưu tác phẩm trên thiết bị.'))
-        .catch(() => setNotice('Không lưu được vào bộ nhớ. Tác phẩm vẫn ở trên màn hình — hãy xuất PNG.'))
-    }, 1000)
-    return () => window.clearTimeout(timer)
-  }, [strokes, persist])
+    if (!dirty.current) return
+    autosaver.schedule(snapshot())
+  }, [snapshot, autosaver])
+  const markDirty = useCallback(() => {
+    dirty.current = true
+  }, [])
+  useEffect(() => store.subscribe(markDirty), [store, markDirty])
+  useEffect(() => {
+    if (saveState.status === 'error') setNotice(storageMessage(saveState.error))
+  }, [saveState])
 
-  const save = () =>
-    persist()
-      .then(() => setNotice('Đã lưu tác phẩm trên thiết bị này.'))
-      .catch(() => setNotice('Không lưu được vào bộ nhớ. Bạn vẫn có thể xuất PNG.'))
+  const renameCurrent = (value: string) => {
+    dirty.current = true
+    setName(value)
+  }
 
-  const openArtwork = (artwork: Artwork) => {
+  const save = async () => {
+    autosaver.schedule(snapshot())
+    await autosaver.flush()
+  }
+
+  const openArtwork = async (artwork: Artwork) => {
+    replay.stop()
     interrupt()
+    await autosaver.flush()
     setArtworkId(artwork.id)
     setName(artwork.name)
+    createdAt.current = artwork.createdAt
     store.dispatch({ type: 'load', strokes: artwork.strokes })
+    dirty.current = false
+    remember(artwork.id)
+    setSaveState({ status: 'saved', at: artwork.updatedAt })
     setNotice(`Đã mở “${artwork.name}”.`)
   }
 
-  const newArtwork = () => {
+  const newArtwork = async () => {
+    replay.stop()
     interrupt()
+    await autosaver.flush()
     setArtworkId(newId())
     setName(DEFAULT_NAME)
+    createdAt.current = Date.now()
     store.dispatch({ type: 'clear' })
+    dirty.current = false
+    remember(null)
+    setSaveState({ status: 'idle' })
     setNotice('Khu vườn mới đã sẵn sàng.')
+  }
+
+  const renameArtwork = async (artwork: Artwork) => {
+    const next = window.prompt('Tên mới cho tác phẩm:', artwork.name)?.trim()
+    if (!next || next === artwork.name) return
+    if (artwork.id === artworkId) {
+      renameCurrent(next)
+      return
+    }
+    try {
+      await repository.rename(artwork.id, next)
+      await refreshLibrary()
+    } catch (error) {
+      setNotice(storageMessage(error))
+    }
   }
 
   const removeArtwork = async (artwork: Artwork) => {
     if (!window.confirm(`Xóa “${artwork.name}” khỏi thiết bị? Không thể hoàn tác.`)) return
-    await deleteArtwork(artwork.id)
-    await refreshLibrary()
-    if (artwork.id === artworkId) newArtwork()
+    try {
+      if (artwork.id === artworkId) {
+        autosaver.cancel()
+        await repository.remove(artwork.id)
+        await newArtwork()
+      } else await repository.remove(artwork.id)
+      await refreshLibrary()
+      setNotice(`Đã xóa “${artwork.name}”.`)
+    } catch (error) {
+      setNotice(storageMessage(error))
+    }
   }
 
+  // ——— Replay ———
+  const startReplay = () => {
+    interrupt()
+    pause()
+    replay.start(store.getState().strokes)
+    setNotice('Đang phát lại quá trình sáng tác. Camera không được dùng khi xem.')
+  }
+  const stopReplay = useCallback(() => {
+    replay.stop()
+    resume()
+    setNotice('Đã thoát phát lại.')
+  }, [replay, resume])
+
   // ——— Editing ———
-  const undo = useCallback(() => store.dispatch({ type: 'undo' }), [store])
-  const redo = useCallback(() => store.dispatch({ type: 'redo' }), [store])
+  const undo = useCallback(() => {
+    if (!sceneOverride.current) store.dispatch({ type: 'undo' })
+  }, [store])
+  const redo = useCallback(() => {
+    if (!sceneOverride.current) store.dispatch({ type: 'redo' })
+  }, [store])
   const startOver = () => {
     if (strokes.length && !window.confirm('Làm lại từ đầu? Mọi nét trên khu vườn này sẽ bị xóa.')) return
     interrupt()
@@ -183,15 +312,18 @@ export default function App() {
       if (mod && key === 'z' && !event.shiftKey) undo()
       else if (mod && (key === 'y' || (key === 'z' && event.shiftKey))) redo()
       else if (!mod && key === 'f') toggleFullscreen()
+      else if (replay.active && key === ' ') replay.toggle()
+      else if (replay.active && key === 'escape') stopReplay()
       else return
       event.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [undo, redo, toggleFullscreen])
+  }, [undo, redo, toggleFullscreen, replay, stopReplay])
 
   // ——— Camera ———
   const startCamera = () => {
+    if (replay.active) stopReplay()
     setNotice('Đang mở camera và tải AI nhận diện tay…')
     void tracking.start()
   }
@@ -210,7 +342,7 @@ export default function App() {
     return { x: Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)), y: Math.min(1, Math.max(0, (event.clientY - box.top) / box.height)) }
   }
   const pointerDown = (event: PointerEvent<HTMLCanvasElement>) => {
-    if (event.button !== 0 || hand === 'drawing') return
+    if (event.button !== 0 || hand === 'drawing' || replay.active) return
     event.currentTarget.setPointerCapture(event.pointerId)
     mouseDrawing.current = true
     input.handle({ type: 'stroke-start', point: toCanvas(event), time: performance.now() })
@@ -324,19 +456,15 @@ export default function App() {
           </div>
 
           <span className="section-label">THƯ VIỆN</span>
-          <button type="button" className="palette" onClick={newArtwork}>
-            ＋ Tác phẩm mới
-          </button>
-          {artworks.map(artwork => (
-            <div className="library-row" key={artwork.id}>
-              <button type="button" className={`palette ${artwork.id === artworkId ? 'selected' : ''}`} onClick={() => openArtwork(artwork)}>
-                {artwork.name}
-              </button>
-              <button type="button" className="row-action" aria-label={`Xóa ${artwork.name}`} onClick={() => void removeArtwork(artwork)}>
-                ×
-              </button>
-            </div>
-          ))}
+          <Library
+            artworks={artworks}
+            currentId={artworkId}
+            unavailable={libraryUnavailable}
+            onNew={() => void newArtwork()}
+            onOpen={artwork => void openArtwork(artwork)}
+            onRename={artwork => void renameArtwork(artwork)}
+            onDelete={artwork => void removeArtwork(artwork)}
+          />
         </aside>
 
         <section className="art-area">
@@ -358,19 +486,23 @@ export default function App() {
                 <small>{handMode ? 'Chụm ngón cái và ngón trỏ để gieo nét đầu tiên' : 'Kéo chuột để gieo nét đầu tiên'}</small>
               </div>
             )}
+            {replay.active && <ReplayBar {...replay} onToggle={replay.toggle} onRestart={replay.restart} onSpeed={replay.setSpeed} onClose={stopReplay} />}
             <CameraPreview video={video} sample={lastSample} handState={hand} visible={cameraOn} hidden={cameraHidden} onToggle={() => setCameraHidden(value => !value)} />
           </div>
           <div className="toolbar">
-            <button type="button" onClick={undo} disabled={!strokes.length || drawing} title="Hoàn tác (Ctrl+Z)">
+            <button type="button" onClick={undo} disabled={!strokes.length || drawing || replay.active} title="Hoàn tác (Ctrl+Z)">
               ↶ <span>Hoàn tác</span>
             </button>
-            <button type="button" onClick={redo} disabled={!canRedo || drawing} title="Khôi phục (Ctrl+Y)">
+            <button type="button" onClick={redo} disabled={!canRedo || drawing || replay.active} title="Khôi phục (Ctrl+Y)">
               ↷ <span>Khôi phục</span>
             </button>
-            <button type="button" onClick={startOver} disabled={!strokes.length}>
+            <button type="button" onClick={startOver} disabled={!strokes.length || replay.active}>
               ⟲ <span>Làm lại</span>
             </button>
             <span className="toolbar-spacer" />
+            <button type="button" onClick={replay.active ? stopReplay : startReplay} disabled={!strokes.length || drawing} title="Phát lại quá trình sáng tác">
+              ▷ <span>{replay.active ? 'Thoát phát lại' : 'Phát lại'}</span>
+            </button>
             <button type="button" className="save" onClick={() => void save()} disabled={!strokes.length}>
               ♡ <span>Lưu</span>
             </button>
@@ -379,7 +511,10 @@ export default function App() {
             </button>
           </div>
           <div className="name-row">
-            <input aria-label="Tên tác phẩm" value={name} maxLength={80} onChange={event => setName(event.target.value)} />
+            <input aria-label="Tên tác phẩm" value={name} maxLength={80} onChange={event => renameCurrent(event.target.value)} />
+            <span className={`save-state ${saveState.status === 'error' ? 'bad' : ''}`} data-testid="save-state">
+              {{ idle: '', pending: 'Chờ lưu…', saving: 'Đang lưu…', saved: saveState.at ? `Đã lưu lúc ${timeFormat.format(saveState.at)}` : 'Đã lưu', error: 'Chưa lưu được' }[saveState.status]}
+            </span>
             <span data-testid="point-count" className={points >= MAX_POINTS ? 'full' : ''}>
               {points.toLocaleString('vi-VN')} / {MAX_POINTS.toLocaleString('vi-VN')} điểm
             </span>

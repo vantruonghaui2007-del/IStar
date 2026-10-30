@@ -36,3 +36,15 @@ test('turning the camera off releases the camera and the worker', async ({ page 
   expect(liveTracks).toBe(0)
   await expect(page.getByTestId('hand-state')).toHaveText('Chế độ chuột')
 })
+
+test('replay stops hand processing and drawing; leaving replay resumes it', async ({ page }) => {
+  await page.goto('/')
+  const box = (await page.getByTestId('art-canvas').boundingBox())!
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+  await page.getByRole('button', { name: 'Bắt đầu' }).click()
+  await expect(page.getByTestId('ai-stats')).toHaveText(/[1-9]\d* lần\/giây/, { timeout: 30_000 })
+  await page.getByRole('button', { name: /^▷ Phát lại$/ }).click()
+  await expect(page.getByTestId('ai-stats')).toHaveText(/^0 lần\/giây/, { timeout: 5_000 })
+  await page.getByRole('button', { name: 'Thoát phát lại' }).first().click()
+  await expect(page.getByTestId('ai-stats')).toHaveText(/[1-9]\d* lần\/giây/, { timeout: 5_000 })
+})
