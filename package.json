@@ -6,11 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc -b --pretty",
-    "test:e2e": "playwright test",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "test:e2e": "playwright test",
+    "check:release": "node scripts/check-release.mjs",
+    "release": "npm run lint && npm run test && npm run build && npm run check:release && npm run test:e2e",
+    "deploy": "npx wrangler@4.150.0 pages deploy dist --project-name mua-net-ai",
+    "icons": "node scripts/render-icons.mjs"
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "1.2.0",
@@ -37,5 +41,8 @@
     "workbox-precaching": "7.4.1",
     "workbox-routing": "7.4.1",
     "workbox-window": "7.4.1"
+  },
+  "engines": {
+    "node": ">=20.19"
   }
 }
