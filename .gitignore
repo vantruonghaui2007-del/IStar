@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Superpowers scratch
+.superpowers/
+
+# Playwright
+test-results/
+playwright-report/
