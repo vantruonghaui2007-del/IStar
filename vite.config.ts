@@ -43,6 +43,8 @@ function cloudflareHeaders(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  // '/' locally and on Cloudflare Pages; '/IStar/' for GitHub Pages (set by the workflow).
+  base: process.env.BASE_PATH ?? '/',
   plugins: [
     react(),
     cloudflareHeaders(),
@@ -65,16 +67,16 @@ export default defineConfig({
         short_name: 'Múa Nét AI',
         description: 'Mỗi chuyển động nhỏ có thể nuôi dưỡng một điều tốt đẹp. Vẽ khu vườn bằng cử chỉ tay, AI nhận diện ngay trên máy.',
         lang: 'vi',
-        start_url: '/',
-        scope: '/',
+        start_url: './',
+        scope: './',
         display: 'standalone',
         orientation: 'landscape',
         background_color: '#f5f3ec',
         theme_color: '#3f694c',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icons/icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
     }),
