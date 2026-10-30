@@ -1,4 +1,4 @@
-import type { Stroke } from '../artwork/draw'
+import type { Stroke } from '../artwork/types'
 
 export type Artwork = { id:string; name:string; createdAt:number; updatedAt:number; width:1920; height:1080; strokes:Stroke[] }
 const DB='mua-net-ai', STORE='artworks', VERSION=1
