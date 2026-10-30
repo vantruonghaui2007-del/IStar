@@ -30,7 +30,8 @@ Lệnh chuẩn: `npm run test`, `npm run typecheck`, `npm run build`, `npm run t
 - [ ] Model chạy thật trên Chrome/Edge webcam (worker + model đã đóng gói; cần webcam thật để nghiệm thu).
 - [x] Studio tương tác và cử chỉ cơ bản; unit test cử chỉ (3 test pass).
 - [ ] Artwork hoàn chỉnh, seed nhất quán, giới hạn điểm và undo/redo.
-- [ ] Lưu trữ, phát lại, PWA/offline.
+- [x] IndexedDB cơ bản, thư viện mở/đổi tên/xóa, autosave, undo/redo, replay theo thời gian.
+- [ ] PWA/offline.
 - [ ] Phát hành và nghiệm thu.
 
 ## Tài nguyên model
@@ -44,4 +45,5 @@ Lệnh chuẩn: `npm run test`, `npm run typecheck`, `npm run build`, `npm run t
 - `npm run typecheck`: đạt.
 - `npm run build`: đạt; mọi file WASM hiện <25 MiB, model đi kèm local.
 - `npm run test:e2e`: chưa cài Playwright do registry npm trả 404 cho tarball `rollup@4.67.2`.
+- IndexedDB có fallback báo lỗi; export PNG vẫn hoạt động khi lưu lỗi.
 - Webcam thật chưa thể nghiệm thu trong môi trường hiện tại.
