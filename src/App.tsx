@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import './App.css'
 import { MAX_POINTS, countPoints } from './artwork/editor'
+import { useOffline } from './offline/useOffline'
 import { PALETTES, PALETTE_IDS } from './artwork/palettes'
 import { grownPlant } from './artwork/plant'
 import { renderArtwork, type Cursor, type SceneItem } from './artwork/render'
@@ -77,6 +78,7 @@ export default function App() {
   const sceneOverride = useRef<(() => SceneItem[] | null) | null>(null)
   const mouseDrawing = useRef(false)
   const replay = useReplay(sceneOverride)
+  const offline = useOffline()
 
   const onSample = useCallback(
     (sample: HandSample) => {
@@ -190,7 +192,9 @@ export default function App() {
     dirty.current = true
   }, [])
   useEffect(() => store.subscribe(markDirty), [store, markDirty])
+  const saveFailed = useRef(false)
   useEffect(() => {
+    saveFailed.current = saveState.status === 'error'
     if (saveState.status === 'error') setNotice(storageMessage(saveState.error))
   }, [saveState])
 
@@ -260,6 +264,19 @@ export default function App() {
     } catch (error) {
       setNotice(storageMessage(error))
     }
+  }
+
+  // ——— App update ———
+  const applyUpdate = async () => {
+    interrupt()
+    replay.stop()
+    if (store.getState().strokes.length) {
+      autosaver.schedule(snapshot())
+      await autosaver.flush()
+    }
+    // The garden reopens after the reload (see restore above) — unless saving failed.
+    if (saveFailed.current && !window.confirm('Tác phẩm hiện tại chưa lưu được nên sẽ mất khi cập nhật. Hãy xuất PNG trước. Vẫn cập nhật?')) return
+    await offline.applyUpdate()
   }
 
   // ——— Replay ———
@@ -384,11 +401,34 @@ export default function App() {
               {tracking.stats.detectionsPerSecond} lần/giây · {Math.round(tracking.stats.inferenceMs)} ms
             </span>
           )}
+          <span className="divider" />
+          <span className={`dot ${offline.status === 'ready' ? 'ready' : offline.status === 'incomplete' ? 'bad' : offline.status === 'preparing' ? 'pending' : ''}`} />
+          <span data-testid="offline-status">
+            {{ ready: 'Sẵn sàng dùng offline', preparing: 'Đang chuẩn bị offline…', incomplete: `Chưa đủ tài nguyên offline${offline.missing ? ` (thiếu ${offline.missing}/${offline.total})` : ''}`, unsupported: import.meta.env.DEV ? 'Offline chỉ có ở bản build' : 'Trình duyệt không hỗ trợ offline' }[offline.status]}
+            {!offline.online && ' · đang ngoại tuyến'}
+          </span>
+          {(offline.status === 'incomplete' || offline.status === 'ready') && (
+            <button type="button" className="link-button" onClick={() => void (offline.status === 'ready' ? offline.check() : offline.repair())}>
+              {offline.status === 'ready' ? 'Kiểm tra lại' : 'Thử lại'}
+            </button>
+          )}
         </div>
         <button type="button" className="icon-button" onClick={toggleFullscreen} aria-label="Toàn màn hình" title="Toàn màn hình (F)">
           ⛶
         </button>
       </header>
+
+      {offline.updateReady && (
+        <div className="update-banner" role="alert">
+          <span>Đã có phiên bản mới của Múa Nét AI. Khu vườn đang mở sẽ được lưu và mở lại sau khi cập nhật.</span>
+          <button type="button" onClick={() => void applyUpdate()}>
+            Cập nhật ngay
+          </button>
+          <button type="button" className="link-button" onClick={offline.dismissUpdate}>
+            Để sau
+          </button>
+        </div>
+      )}
 
       <section className="intro">
         <div>
@@ -527,6 +567,7 @@ export default function App() {
           Múa Nét AI <i>·</i> Gieo mầm
         </span>
         <span>AI nhận diện bàn tay: MediaPipe Hand Landmarker · Cây, lá, hoa: thuật toán tạo hình theo seed</span>
+        <span data-testid="app-version">Phiên bản {__APP_VERSION__}</span>
       </footer>
     </main>
   )
