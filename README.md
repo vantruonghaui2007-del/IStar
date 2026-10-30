@@ -13,6 +13,12 @@
 
 Cao độ theo **thang ngũ cung hò – xự – xang – xê – cống** (tay càng cao nốt càng cao); tên nốt hiện lên khi chơi. Mỗi nhạc cụ có **giới thiệu**, **cách chơi**, **bài tập 3 bước tự đánh dấu** và một **tác phẩm mẫu** (*Gió đồng*, *Chiều quê*, *Mưa xuân*, *Hội làng*) phát lại cùng khu vườn. Tác phẩm mẫu do nhóm biên soạn trên thang ngũ cung; âm thanh nhạc cụ được **tổng hợp mô phỏng** (Web Audio), không phải bản thu nhạc cụ thật.
 
+## Sân khấu nhạc cụ (AR) và tập đánh cả bài
+
+Bấm **🎎 Sân khấu nhạc cụ (AR)** phía trên khu vườn: hình camera hiện lớn như gương soi, **nhạc cụ ảo vẽ đè lên** — 16 dây đàn tranh có nhạn đàn, đàn bầu với cần đàn uốn theo tay, ống sáo có lỗ bấm, hai mặt trống cơm (tình/tùng, có cả nắm cơm giữa mặt trống). Hình camera được phóng đúng theo vùng điều khiển nên đầu ngón tay trên hình chính là chỗ đang chơi; dây rung, mặt trống gợn sóng khi đánh trúng. Không bật camera vẫn chơi được bằng chuột trên sân khấu tối.
+
+**Tập đánh cả bài** (nút 🎼 trong thẻ nhạc cụ): nốt cần đánh **sáng vàng** (dây, làn nốt hoặc mặt trống), hai nốt sau được đánh dấu nét đứt; bài **chờ bạn đánh đúng** mới đi tiếp, có thanh tiến độ và số nốt. Xong bài sẽ có màn chúc mừng; mọi nốt vừa đánh đã mọc thành khu vườn để xem lại, phát lại, xuất ảnh.
+
 ## AI làm gì, thuật toán làm gì
 
 | Phần | Công nghệ | Vai trò |
@@ -83,7 +89,7 @@ npm run test:e2e       # Playwright trên bản production (vite preview)
 npm run release        # chạy tất cả theo thứ tự trên
 ```
 
-E2E chạy **model thật**: Chromium dùng webcam giả phát ảnh bàn tay thật (`e2e/fixtures`), nên kiểm tra được cả Worker, WASM, model và luồng camera. Các tình huống được kiểm: 4 nhạc cụ phát tiếng và hiện tên nốt, bài tập từng bước, tác phẩm mẫu, nhận diện tay và con trỏ, không có tay, từ chối quyền camera, tắt camera giải phóng camera/Worker, vẽ bằng chuột, hoàn tác/khôi phục/làm lại, phím tắt, tự lưu và mở lại sau tải lại trang, thư viện (mở/đổi tên/xóa), phát lại khớp PNG, lưu trữ lỗi vẫn xuất PNG, phát lại dừng nhận diện, **khởi động lại trình duyệt khi mất mạng** rồi dùng mọi chức năng, cache thiếu được phát hiện và sửa, cập nhật phiên bản giữ khu vườn, mất camera giữa chừng, chuyển tab khi phát lại, và quyền riêng tư trong 60 giây.
+E2E chạy **model thật**: Chromium dùng webcam giả phát ảnh bàn tay thật (`e2e/fixtures`), nên kiểm tra được cả Worker, WASM, model và luồng camera. Các tình huống được kiểm: sân khấu AR (đánh trọn bài “Hội làng” 46 nốt, đàn tranh theo dây sáng, camera hiện sau nhạc cụ), 4 nhạc cụ phát tiếng và hiện tên nốt, bài tập từng bước, tác phẩm mẫu, nhận diện tay và con trỏ, không có tay, từ chối quyền camera, tắt camera giải phóng camera/Worker, vẽ bằng chuột, hoàn tác/khôi phục/làm lại, phím tắt, tự lưu và mở lại sau tải lại trang, thư viện (mở/đổi tên/xóa), phát lại khớp PNG, lưu trữ lỗi vẫn xuất PNG, phát lại dừng nhận diện, **khởi động lại trình duyệt khi mất mạng** rồi dùng mọi chức năng, cache thiếu được phát hiện và sửa, cập nhật phiên bản giữ khu vườn, mất camera giữa chừng, chuyển tab khi phát lại, và quyền riêng tư trong 60 giây.
 
 Kiểm thử tự động **không thay thế** thử nghiệm với webcam thật: trước khi trình diễn hãy thử trên laptop thật với Chrome và Edge, trong điều kiện ánh sáng của phòng triển lãm, và ghi lại số *lần/giây* hiển thị trên thanh trên.
 
