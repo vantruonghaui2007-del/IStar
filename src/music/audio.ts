@@ -3,7 +3,7 @@ import type { SoundOutput } from './player'
 import { frequency, semitoneOf } from './scale'
 import type { MusicEvent } from './score'
 
-type Voice = { setPitch: (hz: number) => void; release: (seconds: number) => void }
+type Voice = { setPitch: (hz: number) => void; release: (seconds: number, at?: number) => void }
 
 /**
  * Synthesised traditional instruments (Web Audio, no sample files, works
@@ -62,10 +62,10 @@ export class AudioEngine implements SoundOutput {
     }
     this.voices.get(strokeId)?.release(0.15)
     this.voices.delete(strokeId)
-    if (instrument === 'dan-bau') this.voices.set(strokeId, this.bau(context, hz, now))
-    else if (instrument === 'sao-truc') this.voices.set(strokeId, this.sao(context, hz, now))
-    else if (instrument === 'dan-tranh') this.tranh(context, hz, now)
-    else this.trong(context, event.degree, now)
+    if (instrument === 'dan-bau') this.voices.set(strokeId, this.bau(context, hz, now, this.dry))
+    else if (instrument === 'sao-truc') this.voices.set(strokeId, this.sao(context, hz, now, this.dry))
+    else if (instrument === 'dan-tranh') this.tranh(context, hz, now, this.dry)
+    else this.trong(context, event.degree, now, this.dry)
   }
 
   stop(strokeId: string) {
@@ -121,51 +121,58 @@ export class AudioEngine implements SoundOutput {
     return lfo
   }
 
-  private bau(context: AudioContext, hz: number, now: number): Voice {
+  private fadeOut(context: AudioContext, param: AudioParam, seconds: number, at?: number) {
+    const from = at ?? context.currentTime
+    param.setValueAtTime(param.value, from)
+    param.setTargetAtTime(0.0001, from, seconds / 3)
+    return from
+  }
+
+  private bau(context: AudioContext, hz: number, now: number, dest: AudioNode): Voice {
     const out = context.createGain()
-    out.gain.setValueAtTime(0, now)
-    out.gain.linearRampToValueAtTime(0.42, now + 0.008)
-    out.gain.setTargetAtTime(0.2, now + 0.01, 0.18)
-    out.gain.setTargetAtTime(0.05, now + 0.6, 1.6)
-    const tone = context.createBiquadFilter()
-    tone.type = 'lowpass'
-    tone.frequency.value = 2800
-    out.connect(tone).connect(this.dry!)
-    const partials = [1, 2, 3].map((multiple, i) => {
+    out.gain.setValueAtTime(0.0001, now)
+    out.gain.linearRampToValueAtTime(0.35, now + 0.02)
+    out.gain.setTargetAtTime(0.18, now + 0.15, 0.4)
+    out.connect(dest)
+    const oscs: OscillatorNode[] = []
+    const weights = [1, 0.8, 0.6, 0.45, 0.35, 0.25, 0.18, 0.12]
+    const detunes: AudioParam[] = []
+    for (let i = 0; i < weights.length; i++) {
       const osc = context.createOscillator()
-      osc.type = 'sine'
-      osc.frequency.value = hz * multiple
+      osc.type = i === 0 ? 'sine' : 'triangle'
+      osc.frequency.setValueAtTime(hz * (i + 1), now)
       const gain = context.createGain()
-      gain.gain.value = [1, 0.22, 0.08][i]
+      gain.gain.value = weights[i] / (i + 1)
       osc.connect(gain).connect(out)
       osc.start(now)
-      return { osc, multiple }
-    })
-    const lfo = this.vibrato(context, partials.map(p => p.osc.detune), 5.2, 14, 0.35, now)
+      oscs.push(osc)
+      detunes.push(osc.detune)
+    }
+    const lfo = this.vibrato(context, detunes, 4.8, 14, 0.3, now)
     return {
-      setPitch: next => partials.forEach(p => p.osc.frequency.setTargetAtTime(next * p.multiple, context.currentTime, 0.05)),
-      release: seconds => {
+      setPitch: next => {
         const at = context.currentTime
-        out.gain.cancelScheduledValues(at)
-        out.gain.setValueAtTime(out.gain.value, at)
-        out.gain.linearRampToValueAtTime(0, at + seconds)
-        partials.forEach(p => p.osc.stop(at + seconds + 0.05))
-        lfo.stop(at + seconds + 0.05)
+        oscs.forEach((osc, i) => osc.frequency.setTargetAtTime(next * (i + 1), at, 0.04))
+      },
+      release: (seconds, at) => {
+        const from = this.fadeOut(context, out.gain, seconds, at)
+        oscs.forEach(osc => osc.stop(from + seconds + 0.05))
+        lfo.stop(from + seconds + 0.05)
       },
     }
   }
 
-  private sao(context: AudioContext, hz: number, now: number): Voice {
+  private sao(context: AudioContext, hz: number, now: number, dest: AudioNode): Voice {
     const out = context.createGain()
-    out.gain.setValueAtTime(0, now)
-    out.gain.linearRampToValueAtTime(0.26, now + 0.09)
-    out.connect(this.dry!)
+    out.gain.setValueAtTime(0.0001, now)
+    out.gain.linearRampToValueAtTime(0.42, now + 0.04)
+    out.connect(dest)
     const body = context.createOscillator()
     body.type = 'sine'
-    body.frequency.value = hz
+    body.frequency.setValueAtTime(hz, now)
     const edge = context.createOscillator()
     edge.type = 'triangle'
-    edge.frequency.value = hz * 2
+    edge.frequency.setValueAtTime(hz * 2, now)
     const edgeGain = context.createGain()
     edgeGain.gain.value = 0.05
     body.connect(out)
@@ -191,12 +198,9 @@ export class AudioEngine implements SoundOutput {
         edge.frequency.setTargetAtTime(next * 2, at, 0.03)
         band.frequency.setTargetAtTime(next * 2, at, 0.03)
       },
-      release: seconds => {
-        const at = context.currentTime
-        out.gain.cancelScheduledValues(at)
-        out.gain.setValueAtTime(out.gain.value, at)
-        out.gain.linearRampToValueAtTime(0, at + seconds)
-        for (const node of [body, edge, breath, lfo]) node.stop(at + seconds + 0.05)
+      release: (seconds, at) => {
+        const from = this.fadeOut(context, out.gain, seconds, at)
+        for (const node of [body, edge, breath, lfo]) node.stop(from + seconds + 0.05)
       },
     }
   }
@@ -216,7 +220,7 @@ export class AudioEngine implements SoundOutput {
     return buffer
   }
 
-  private tranh(context: AudioContext, hz: number, now: number) {
+  private tranh(context: AudioContext, hz: number, now: number, dest: AudioNode) {
     const source = context.createBufferSource()
     source.buffer = this.stringBuffer(context, hz)
     const gain = context.createGain()
@@ -224,11 +228,11 @@ export class AudioEngine implements SoundOutput {
     const tone = context.createBiquadFilter()
     tone.type = 'lowpass'
     tone.frequency.value = 4200
-    source.connect(tone).connect(gain).connect(this.dry!)
+    source.connect(tone).connect(gain).connect(dest)
     source.start(now)
   }
 
-  private trong(context: AudioContext, degree: number, now: number) {
+  private trong(context: AudioContext, degree: number, now: number, dest: AudioNode) {
     const high = degree >= 5
     const membrane = context.createOscillator()
     membrane.type = 'sine'
@@ -238,7 +242,7 @@ export class AudioEngine implements SoundOutput {
     body.gain.setValueAtTime(0.0001, now)
     body.gain.exponentialRampToValueAtTime(high ? 0.55 : 0.9, now + 0.005)
     body.gain.exponentialRampToValueAtTime(0.0001, now + (high ? 0.25 : 0.55))
-    membrane.connect(body).connect(this.dry!)
+    membrane.connect(body).connect(dest)
     membrane.start(now)
     membrane.stop(now + 0.6)
     const slap = context.createBufferSource()
@@ -249,7 +253,7 @@ export class AudioEngine implements SoundOutput {
     const slapGain = context.createGain()
     slapGain.gain.setValueAtTime(high ? 0.35 : 0.25, now)
     slapGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05)
-    slap.connect(filter).connect(slapGain).connect(this.dry!)
+    slap.connect(filter).connect(slapGain).connect(dest)
     slap.start(now)
     slap.stop(now + 0.06)
   }

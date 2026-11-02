@@ -1,42 +1,106 @@
 :root {
-  --ink: #263a2f;
-  --ink-soft: #5d6b60;
-  --muted: #828a7f;
-  --line: #e5e3d9;
-  --green: #3f694c;
-  --green-soft: #64825c;
-  --rose: #c8695e;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* Tier 1 & 2: Cultural Material Tokens (Giấy Dó · Sơn Mài · Men Ngọc · Vàng Quỳ) */
+  --bg-paper: #f4efe3;
+  --surface-card: #faf7f0;
+  --surface-elevated: #ece6d6;
+  --surface-glass: rgba(250, 247, 240, 0.92);
+  --stage-lacquer: #16110d;
+  --stage-hud: rgba(22, 17, 13, 0.88);
+
+  --ink: #14221a;
+  --ink-soft: #38493e;
+  --muted: #5e6d62;
+  --line: #dbd3c1;
+  --line-strong: #c2b7a0;
+
+  --green: #24583b;
+  --green-hover: #1b452e;
+  --green-soft: #44774e;
+  --green-tint: #e1ede0;
+
+  --rose: #b83c2e;
+  --rose-tint: #fae1dc;
+  --gold: #d4a026;
+  --gold-tint: #fcedcb;
+  --wood: #754422;
+  --wood-hover: #5d3417;
+
+  /* Typography: Montserrat as Primary Font Everywhere */
+  --font-display: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Montserrat', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 2px 10px rgba(20, 34, 26, 0.06), 0 1px 3px rgba(20, 34, 26, 0.04);
+  --shadow-canvas: 0 14px 38px rgba(20, 34, 26, 0.12), 0 3px 10px rgba(20, 34, 26, 0.06);
+  --shadow-float: 0 10px 28px rgba(22, 17, 13, 0.32);
+
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
   color: var(--ink);
-  background: #f5f3ec;
+  background: var(--bg-paper);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   color-scheme: light;
 }
-* {
+
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
+
 body {
   margin: 0;
-  min-width: 320px;
-  min-height: 100vh;
-  background: #f5f3ec;
+  min-inline-size: 320px;
+  min-block-size: 100dvh;
+  background-color: var(--bg-paper);
+  background-image:
+    radial-gradient(ellipse at 15% 0%, rgba(255, 252, 242, 0.75) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 100%, rgba(196, 184, 152, 0.22) 0%, transparent 60%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+  letter-spacing: -0.015em;
+}
+
+p,
+li {
+  text-wrap: pretty;
+}
+
 button,
 input {
-  font: inherit;
+  font-family: var(--font-sans);
 }
+
 button {
   cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, transform 0.12s ease;
 }
+
 button:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
 }
-:focus-visible {
-  outline: 2px solid #6f9a5f;
+
+:where(a:any-link, button, input, [role='tab'], [role='radio']):focus-visible {
+  outline: 2.5px solid var(--green);
   outline-offset: 2px;
 }
+
 ::selection {
-  background: #dce8ce;
+  background: #d4e8cb;
+  color: var(--ink);
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from 'react'
+import { useEffect, useRef, useState, type RefObject } from 'react'
 import { activeZone, type HandState } from '../tracking/gesture'
 import type { HandSample } from '../tracking/protocol'
 
@@ -24,6 +24,7 @@ type Props = {
 export function CameraPreview({ video, sample, handState, visible, hidden, onToggle }: Props) {
   const overlay = useRef<HTMLCanvasElement>(null)
   const state = useRef(handState)
+  const [corner, setCorner] = useState<'bottom' | 'top'>('bottom')
   useEffect(() => {
     state.current = handState
   }, [handState])
@@ -80,13 +81,26 @@ export function CameraPreview({ video, sample, handState, visible, hidden, onTog
   }, [visible, hidden, sample])
 
   return (
-    <div className={`camera-preview ${hidden ? 'collapsed' : ''}`} hidden={!visible}>
+    <div className={`camera-preview corner-${corner} ${hidden ? 'collapsed' : ''}`} hidden={!visible}>
       <video ref={video} muted playsInline aria-hidden="true" />
       <canvas ref={overlay} width={320} height={240} aria-hidden="true" />
       <span className="camera-caption">CAMERA · XỬ LÝ TRÊN MÁY</span>
-      <button type="button" className="camera-toggle" onClick={onToggle} aria-label={hidden ? 'Hiện camera' : 'Ẩn camera'}>
-        {hidden ? '◉' : '–'}
-      </button>
+      <div className="camera-controls">
+        {!hidden && (
+          <button
+            type="button"
+            className="camera-pos"
+            onClick={() => setCorner(c => (c === 'bottom' ? 'top' : 'bottom'))}
+            aria-label={corner === 'bottom' ? 'Chuyển khung camera lên góc trên' : 'Chuyển khung camera xuống góc dưới'}
+            title={corner === 'bottom' ? 'Chuyển lên góc trên' : 'Chuyển xuống góc dưới'}
+          >
+            {corner === 'bottom' ? '↑' : '↓'}
+          </button>
+        )}
+        <button type="button" className="camera-toggle" onClick={onToggle} aria-label={hidden ? 'Hiện camera' : 'Ẩn camera'} title={hidden ? 'Hiện camera' : 'Thu gọn camera'}>
+          {hidden ? '◉' : '–'}
+        </button>
+      </div>
     </div>
   )
 }

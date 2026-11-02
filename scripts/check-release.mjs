@@ -18,6 +18,7 @@ const INERT_HOSTS = new Set([
   'www.w3.org', 'react.dev', 'www.khronos.org', 'www.ietf.org', 'tools.ietf.org', 'webkit.org', 'github.com', 'developer.mozilla.org',
   'bugzil.la', 'bit.ly', 'unicode.org', 'server.com', 'pubs.opengroup.org', 'kripken.github.io', 'en.wikipedia.org', 'odml.pa.googleapis.com',
 ])
+const ORIGINAL_AUDIO_HOSTS = new Set()
 const SECRET_PATTERNS = [/AIza[0-9A-Za-z_-]{35}/, /\bsk-[A-Za-z0-9]{20,}/, /\bghp_[A-Za-z0-9]{36}\b/, /-----BEGIN [A-Z ]*PRIVATE KEY-----/]
 
 const failures = []
@@ -60,7 +61,7 @@ for (const file of textFiles) {
   }
 }
 check(secrets.length === 0, `no API keys or private keys in ${textFiles.length} text files${secrets.length ? `: ${secrets.join(', ')}` : ''}`)
-const unexpected = [...hosts.keys()].filter(host => !INERT_HOSTS.has(host))
+const unexpected = [...hosts.keys()].filter(host => !INERT_HOSTS.has(host) && !ORIGINAL_AUDIO_HOSTS.has(host))
 check(unexpected.length === 0, `no unexpected external hosts in shipped code${unexpected.length ? `: ${unexpected.map(host => `${host} (${[...hosts.get(host)].join(', ')})`).join('; ')}` : ''}`)
 
 const workerFile = all.find(file => /hand\.worker-.*\.js$/.test(file))
@@ -68,6 +69,7 @@ check(Boolean(workerFile) && (await readFile(workerFile, 'utf8')).includes('Đã
 
 const headers = await readFile(path.join(dist, '_headers'), 'utf8')
 check(/connect-src 'self'/.test(headers), "_headers sets CSP connect-src 'self'")
+check(/frame-ancestors 'none'/.test(headers), "_headers sets CSP frame-ancestors 'none'")
 check(/Permissions-Policy: camera=\(self\)/.test(headers), '_headers limits camera to this site')
 
 const sw = await readFile(path.join(dist, 'sw.js'), 'utf8')

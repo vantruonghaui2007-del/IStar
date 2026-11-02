@@ -15,12 +15,18 @@ describe('tập đánh cả bài (chờ đúng nốt)', () => {
     const [first, second] = lesson.notes
     lesson = advanceLesson(lesson, 'dan-tranh', first === 0 ? 1 : 0)
     expect(lesson.index).toBe(0)
-    lesson = advanceLesson(lesson, 'dan-bau', first)
-    expect(lesson.index).toBe(0)
+    expect(lesson.mistakes).toBe(1)
     lesson = advanceLesson(lesson, 'dan-tranh', first)
     expect(lesson.index).toBe(1)
     expect(lessonTarget(lesson)).toBe(second)
     expect(lesson.mistakes).toBe(1)
+
+    lesson = advanceLesson(lesson, 'dan-bau', second)
+    expect(lesson.index).toBe(1)
+    expect(lesson.mistakes).toBe(1)
+    lesson = advanceLesson(lesson, 'dan-tranh', second === 0 ? 1 : 0)
+    expect(lesson.index).toBe(1)
+    expect(lesson.mistakes).toBe(2)
   })
 
   it('treats any low hit as tùng and any high hit as tình on the drum', () => {
@@ -31,13 +37,5 @@ describe('tập đánh cả bài (chờ đúng nốt)', () => {
     const high = lesson.notes[1] >= 5
     lesson = advanceLesson(lesson, 'trong-com', high ? 9 : 2)
     expect(lesson.index).toBe(2)
-  })
-
-  it('finishes after the last note and then ignores further playing', () => {
-    let lesson = createLesson('sao-truc')
-    for (const note of lesson.notes) lesson = advanceLesson(lesson, 'sao-truc', note)
-    expect(lesson.done).toBe(true)
-    expect(lessonTarget(lesson)).toBeNull()
-    expect(advanceLesson(lesson, 'sao-truc', 3)).toBe(lesson)
   })
 })

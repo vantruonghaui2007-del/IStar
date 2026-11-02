@@ -1,13 +1,21 @@
-import type { InstrumentId } from './instruments'
+import { type InstrumentId } from './instruments'
 import { MELODIES } from './pieces'
 
-/**
- * “Wait mode” play-along: the next note lights up and the lesson waits until
- * the player hits it, so anyone can get through a whole piece at their own pace.
- */
-export type Lesson = { instrument: InstrumentId; notes: number[]; index: number; mistakes: number; done: boolean }
+export type Lesson = {
+  instrument: InstrumentId
+  notes: number[]
+  index: number
+  mistakes: number
+  done: boolean
+}
 
-export const createLesson = (instrument: InstrumentId): Lesson => ({ instrument, notes: MELODIES[instrument].notes, index: 0, mistakes: 0, done: false })
+export const createLesson = (instrument: InstrumentId): Lesson => ({
+  instrument,
+  notes: MELODIES[instrument].notes,
+  index: 0,
+  mistakes: 0,
+  done: false,
+})
 
 export const lessonTarget = (lesson: Lesson): number | null => (lesson.done ? null : lesson.notes[lesson.index])
 

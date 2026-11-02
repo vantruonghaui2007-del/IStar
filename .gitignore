@@ -29,3 +29,7 @@ dist-ssr
 # Playwright
 test-results/
 playwright-report/
+
+# Local music analysis (source recordings and model weights are not published)
+.venv-transcription/
+.transcription-work/

@@ -7,7 +7,7 @@ import pkg from './package.json' with { type: 'json' }
 /**
  * Sent by `vite preview` and, via the generated `_headers` file, by
  * Cloudflare Pages. `connect-src 'self'` means the browser itself refuses to
- * send anything (camera frames, hand points, artworks) to another server.
+ * send camera frames, hand points or artworks to another server.
  */
 const securityHeaders: Record<string, string> = {
   'Content-Security-Policy': [
@@ -59,7 +59,7 @@ export default defineConfig({
       injectManifest: {
         // The plugin's defaults skip .task and .wasm and anything over 2 MiB;
         // the model (7.5 MiB) and WASM (13.8 MiB) must be cached explicitly.
-        globPatterns: ['**/*.{html,js,css,svg,png,wasm,task}'],
+        globPatterns: ['**/*.{html,js,css,svg,png,wasm,task,woff2,woff}'],
         maximumFileSizeToCacheInBytes: 25 * 1024 * 1024,
       },
       manifest: {

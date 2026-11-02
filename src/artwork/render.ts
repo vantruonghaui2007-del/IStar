@@ -279,18 +279,89 @@ export function drawPlant(ctx: Ctx, plant: Plant, age: number) {
 }
 
 export function drawCursor(ctx: Ctx, cursor: Cursor) {
+  const t = performance.now()
+  const pulse = Math.sin(t * 0.007) * 2
   ctx.save()
-  ctx.lineWidth = 3
-  ctx.strokeStyle = cursor.drawing ? '#d9675e' : '#3b6a48'
-  ctx.fillStyle = cursor.drawing ? 'rgba(224, 122, 107, 0.35)' : 'rgba(59, 106, 72, 0.12)'
-  ctx.beginPath()
-  ctx.arc(cursor.x, cursor.y, cursor.drawing ? 14 : 20, 0, Math.PI * 2)
-  ctx.fill()
-  ctx.stroke()
-  ctx.beginPath()
-  ctx.arc(cursor.x, cursor.y, 3, 0, Math.PI * 2)
-  ctx.fillStyle = ctx.strokeStyle
-  ctx.fill()
+
+  if (cursor.drawing) {
+    // 1. Soft radial vermilion bloom (nét son ấm lan tỏa trên giấy Dó)
+    const bloomRadius = 30 + pulse * 1.5
+    const gradient = ctx.createRadialGradient(cursor.x, cursor.y, 2, cursor.x, cursor.y, bloomRadius)
+    gradient.addColorStop(0, 'rgba(235, 94, 76, 0.45)')
+    gradient.addColorStop(0.5, 'rgba(217, 103, 94, 0.22)')
+    gradient.addColorStop(1, 'rgba(217, 103, 94, 0)')
+    ctx.fillStyle = gradient
+    ctx.beginPath()
+    ctx.arc(cursor.x, cursor.y, bloomRadius, 0, Math.PI * 2)
+    ctx.fill()
+
+    // 2. Animated ink ripple expanding outwards
+    const ripplePhase = (t % 750) / 750
+    const rippleRadius = 12 + ripplePhase * 26
+    const rippleAlpha = (1 - ripplePhase) * 0.55
+    ctx.beginPath()
+    ctx.arc(cursor.x, cursor.y, rippleRadius, 0, Math.PI * 2)
+    ctx.strokeStyle = `rgba(217, 75, 61, ${rippleAlpha})`
+    ctx.lineWidth = 1.8
+    ctx.stroke()
+
+    // 3. Main active brush cursor ring
+    ctx.lineWidth = 2.8
+    ctx.strokeStyle = '#d94b3d'
+    ctx.fillStyle = 'rgba(240, 110, 95, 0.38)'
+    ctx.beginPath()
+    ctx.arc(cursor.x, cursor.y, 14 + pulse * 0.8, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+
+    // 4. Golden glowing core bead (nhụy hoa / giọt sương vàng quỳ)
+    ctx.shadowColor = '#d94b3d'
+    ctx.shadowBlur = 6
+    ctx.beginPath()
+    ctx.arc(cursor.x, cursor.y, 4, 0, Math.PI * 2)
+    ctx.fillStyle = '#ffdf6d'
+    ctx.fill()
+  } else {
+    // Ready / Hover state: Elegant jade ring (men ngọc) with soft breathing pulse
+    const hoverRadius = 18 + pulse
+    const hoverGrad = ctx.createRadialGradient(cursor.x, cursor.y, 3, cursor.x, cursor.y, hoverRadius * 1.35)
+    hoverGrad.addColorStop(0, 'rgba(46, 125, 50, 0.18)')
+    hoverGrad.addColorStop(1, 'rgba(46, 125, 50, 0)')
+    ctx.fillStyle = hoverGrad
+    ctx.beginPath()
+    ctx.arc(cursor.x, cursor.y, hoverRadius * 1.35, 0, Math.PI * 2)
+    ctx.fill()
+
+    ctx.lineWidth = 2.2
+    ctx.strokeStyle = '#2e7d32'
+    ctx.fillStyle = 'rgba(46, 125, 50, 0.14)'
+    ctx.beginPath()
+    ctx.arc(cursor.x, cursor.y, hoverRadius, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.stroke()
+
+    // Delicate 4-point cardinal guide ticks for artist precision
+    const tickLen = 4
+    ctx.strokeStyle = '#2e7d32'
+    ctx.lineWidth = 1.8
+    ctx.beginPath()
+    ctx.moveTo(cursor.x, cursor.y - hoverRadius - tickLen)
+    ctx.lineTo(cursor.x, cursor.y - hoverRadius + 1)
+    ctx.moveTo(cursor.x, cursor.y + hoverRadius - 1)
+    ctx.lineTo(cursor.x, cursor.y + hoverRadius + tickLen)
+    ctx.moveTo(cursor.x - hoverRadius - tickLen, cursor.y)
+    ctx.lineTo(cursor.x - hoverRadius + 1, cursor.y)
+    ctx.moveTo(cursor.x + hoverRadius - 1, cursor.y)
+    ctx.lineTo(cursor.x + hoverRadius + tickLen, cursor.y)
+    ctx.stroke()
+
+    // Center jade pip
+    ctx.beginPath()
+    ctx.arc(cursor.x, cursor.y, 2.5, 0, Math.PI * 2)
+    ctx.fillStyle = '#2e7d32'
+    ctx.fill()
+  }
+
   ctx.restore()
 }
 

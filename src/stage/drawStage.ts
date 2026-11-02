@@ -69,17 +69,25 @@ function lanes(ctx: Ctx, frame: StageFrame, x0: number, x1: number) {
     const y = yOfDegree(degree)
     const target = frame.targets[0] === degree
     const next = frame.targets.slice(1, 3).includes(degree)
-    ctx.fillStyle = target ? 'rgba(242, 201, 76, 0.32)' : degree === handLane ? 'rgba(255, 255, 255, 0.16)' : degree % 2 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)'
+    ctx.fillStyle = target ? 'rgba(242, 201, 76, 0.36)' : degree === handLane ? 'rgba(255, 255, 255, 0.16)' : degree % 2 ? 'rgba(255, 255, 255, 0.04)' : 'rgba(255, 255, 255, 0.08)'
     ctx.fillRect(x0, y - LANE / 2 + 2, x1 - x0, LANE - 4)
-    if (next) {
+    if (target) {
+      ctx.strokeStyle = GOLD
+      ctx.lineWidth = 4
+      ctx.strokeRect(x0 + 2, y - LANE / 2 + 4, x1 - x0 - 4, LANE - 8)
+    } else if (next) {
       ctx.strokeStyle = 'rgba(242, 201, 76, 0.55)'
       ctx.setLineDash([10, 10])
       ctx.lineWidth = 2
       ctx.strokeRect(x0 + 2, y - LANE / 2 + 4, x1 - x0 - 4, LANE - 8)
       ctx.setLineDash([])
     }
-    label(ctx, noteName(degree), x1 - 70, y, target ? 40 : 28, target ? GOLD : '#fdf8ea')
-    if (target) label(ctx, '▶', x0 + 40, y + Math.sin(frame.now / 160) * 6, 34, GOLD)
+    label(ctx, noteName(degree), x1 - 50, y, target ? 34 : 26, target ? GOLD : '#fdf8ea', 'right')
+    if (target) {
+      label(ctx, '▶ BẤM VÀO LÀN NÀY', x0 + 28 + Math.sin(frame.now / 160) * 6, y, 28, GOLD, 'left')
+    } else if (frame.targets[1] === degree) {
+      label(ctx, '• Nốt kế tiếp', x0 + 28, y, 21, 'rgba(242, 201, 76, 0.85)', 'left')
+    }
   }
 }
 
@@ -216,15 +224,24 @@ function danTranh(ctx: Ctx, frame: StageFrame) {
     const age = hits.length ? frame.now - hits[hits.length - 1].at : Infinity
     const amplitude = 16 * Math.exp(-age / 350)
     if (string === target) {
-      ctx.fillStyle = 'rgba(242, 201, 76, 0.25)'
+      ctx.fillStyle = 'rgba(242, 201, 76, 0.28)'
       ctx.fillRect(x - 40, 210, 80, 770)
-      label(ctx, '▼', x, 170 + Math.sin(frame.now / 160) * 8, 42, GOLD)
+      ctx.strokeStyle = GOLD
+      ctx.lineWidth = 4
+      ctx.strokeRect(x - 40, 210, 80, 770)
+      label(ctx, `DÂY ${string + 1}`, x, 142, 22, GOLD)
+      label(ctx, '▼', x, 178 + Math.sin(frame.now / 160) * 8, 40, GOLD)
     } else if (frame.targets.slice(1, 3).includes(string)) {
       ctx.strokeStyle = 'rgba(242, 201, 76, 0.5)'
       ctx.setLineDash([8, 10])
       ctx.lineWidth = 2
       ctx.strokeRect(x - 36, 214, 72, 762)
       ctx.setLineDash([])
+      if (frame.targets[1] === string) {
+        label(ctx, `Tiếp (${string + 1})`, x, 180, 18, 'rgba(242, 201, 76, 0.85)')
+      }
+    } else {
+      label(ctx, `${string + 1}`, x, 192, 17, 'rgba(253, 248, 234, 0.55)')
     }
     vibratingLine(ctx, x, 220, x, 980, amplitude, frame.now / 14, amplitude > 1 ? '#fff6d2' : '#e8dcc0', 2 + string / 8)
     // Bridge (nhạn đàn): positions step diagonally across the board, like the real instrument.
@@ -236,7 +253,7 @@ function danTranh(ctx: Ctx, frame: StageFrame) {
     ctx.lineTo(x + 14, by + 16)
     ctx.closePath()
     ctx.fill()
-    label(ctx, noteName(string), x, 1035, string === target ? 30 : 22, string === target ? GOLD : '#fdf8ea')
+    label(ctx, noteName(string), x, 1035, string === target ? 28 : 22, string === target ? GOLD : '#fdf8ea')
   }
 }
 

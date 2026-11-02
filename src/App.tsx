@@ -10,7 +10,7 @@ import { INSTRUMENTS, INSTRUMENT_IDS, type InstrumentId } from './music/instrume
 import { pieceArtwork } from './music/pieces'
 import { advanceLesson, createLesson, type Lesson } from './music/lesson'
 import { MusicPlayer } from './music/player'
-import { noteLabel } from './music/scale'
+import { NOTE_NAMES, noteLabel } from './music/scale'
 import { scoreOf } from './music/score'
 import { TUTORIALS } from './music/tutorial'
 import { ARTWORK_VERSION, ArtworkRepository, DEFAULT_ARTWORK_NAME, StorageError, type Artwork } from './storage/artworks'
@@ -18,6 +18,17 @@ import { Autosaver, type SaveState } from './storage/autosave'
 import { CameraPreview } from './studio/CameraPreview'
 import { EditorStore, useEditor } from './studio/editorStore'
 import { GardenCanvas } from './studio/GardenCanvas'
+import { GardenGuides } from './studio/GardenGuides'
+import {
+  FullscreenIcon,
+  SoundOffIcon,
+  SoundOnIcon,
+  ToolbarExportIcon,
+  ToolbarRedoIcon,
+  ToolbarResetIcon,
+  ToolbarSaveIcon,
+  ToolbarUndoIcon,
+} from './studio/InstrumentIcons'
 import { InstrumentPanel, type TutorialState } from './studio/InstrumentPanel'
 import { Library } from './studio/Library'
 import { PinchDemo } from './studio/PinchDemo'
@@ -77,9 +88,10 @@ export default function App() {
   const player = useMemo(() => new MusicPlayer(engine), [engine])
   const [audioState, setAudioState] = useState<string>('off')
   const [muted, setMuted] = useState(false)
-  const [note, setNote] = useState<{ text: string; key: number } | null>(null)
+  const [note, setNote] = useState<{ text: string; stepIndex: number | null; key: number } | null>(null)
   const noteTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [view, setView] = useState<'garden' | 'stage'>('garden')
+  const [showGuides, setShowGuides] = useState(true)
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const stageHits = useRef<StageHit[]>([])
   useEffect(() => {
@@ -92,7 +104,8 @@ export default function App() {
         setLesson(current => (current ? advanceLesson(current, played, event.degree) : current))
       }
       const label = played === 'trong-com' ? (event.degree >= 5 ? 'Tình' : 'Tùng') : noteLabel(event.degree).name
-      setNote({ text: `${INSTRUMENTS[played].name} · ${label}`, key: performance.now() })
+      const stepIndex = played === 'trong-com' ? null : ((event.degree % 5) + 5) % 5
+      setNote({ text: `${INSTRUMENTS[played].name} · ${label}`, stepIndex, key: performance.now() })
       clearTimeout(noteTimer.current)
       noteTimer.current = setTimeout(() => setNote(null), 1400)
     }
@@ -227,16 +240,14 @@ export default function App() {
       const id = recall()
       if (!id) return
       try {
-        const artwork = await repository.get(id)
-        if (!artwork || store.getState().strokes.length) return
-        setArtworkId(artwork.id)
-        setName(artwork.name)
-        createdAt.current = artwork.createdAt
-        store.dispatch({ type: 'load', strokes: artwork.strokes })
-        dirty.current = false
-        setNotice(`Đã mở lại “${artwork.name}” từ lần trước.`)
-      } catch {
-        // Library unavailable: start with an empty garden.
+        const last = await repository.get(id)
+        if (!last) return
+        setArtworkId(last.id)
+        setName(last.name)
+        createdAt.current = last.createdAt
+        store.dispatch({ type: 'load', strokes: last.strokes })
+      } catch (error) {
+        setNotice(storageMessage(error))
       }
     })()
   }, [refreshLibrary, store])
@@ -280,26 +291,25 @@ export default function App() {
     setNotice(`Đã mở “${artwork.name}”.`)
   }
 
-  /** Opens a fresh copy of an instrument's demo piece and plays it; saved only once the visitor changes it. */
-  const openPiece = async (sample: Artwork) => {
+  const openPiece = async (piece: Artwork) => {
     replay.stop()
     interrupt()
     await autosaver.flush()
-    setArtworkId(newId())
-    setName(sample.name)
+    const id = newId()
+    setArtworkId(id)
+    setName(piece.name)
     createdAt.current = Date.now()
-    store.dispatch({ type: 'load', strokes: sample.strokes })
+    store.dispatch({ type: 'load', strokes: piece.strokes })
     dirty.current = false
+    remember(null)
     setSaveState({ status: 'idle' })
-    const played = sample.strokes[0]?.instrument
-    if (played) setInstrument(played)
-    engine.unlock()
-    pause()
-    setLesson(null)
-    setView('garden')
-    replay.start(sample.strokes)
-    setPlayingPiece(played ?? null)
-    setNotice(`Đang phát tác phẩm “${sample.name}”${played ? ` — ${INSTRUMENTS[played].name}` : ''}. Xem khu vườn mọc theo tiếng nhạc; thoát phát lại để chơi tiếp trên bản này.`)
+    const pieceInstrument = piece.strokes[0]?.instrument
+    if (pieceInstrument) {
+      setInstrument(pieceInstrument)
+      setPlayingPiece(pieceInstrument)
+    }
+    setNotice(`Đang nghe tác phẩm “${piece.name}”.`)
+    startReplay()
   }
 
   // ——— Instrument & practice ———
@@ -319,6 +329,7 @@ export default function App() {
   const startLesson = (id: InstrumentId = instrument) => {
     engine.unlock()
     if (replay.active) stopReplay()
+    instrumentRef.current = id
     setTutorial(null)
     setInstrument(id)
     setView('stage')
@@ -487,14 +498,21 @@ export default function App() {
     if (event.button !== 0 || hand === 'drawing' || replay.active) return
     event.currentTarget.setPointerCapture(event.pointerId)
     mouseDrawing.current = true
-    input.handle({ type: 'stroke-start', point: toCanvas(event), time: performance.now() })
+    const pt = toCanvas(event)
+    cursor.current = { x: pt.x * CANVAS_WIDTH, y: pt.y * CANVAS_HEIGHT, drawing: true }
+    input.handle({ type: 'stroke-start', point: pt, time: performance.now() })
   }
   const pointerMove = (event: PointerEvent<HTMLCanvasElement>) => {
-    if (mouseDrawing.current) input.handle({ type: 'stroke-move', point: toCanvas(event), time: performance.now() })
+    if (mouseDrawing.current) {
+      const pt = toCanvas(event)
+      cursor.current = { x: pt.x * CANVAS_WIDTH, y: pt.y * CANVAS_HEIGHT, drawing: true }
+      input.handle({ type: 'stroke-move', point: pt, time: performance.now() })
+    }
   }
   const pointerUp = () => {
     if (!mouseDrawing.current) return
     mouseDrawing.current = false
+    cursor.current = null
     input.handle({ type: 'stroke-end', time: performance.now() })
   }
 
@@ -523,31 +541,36 @@ export default function App() {
           </div>
         </div>
         <div className="top-status">
-          <span className={`dot ${handMode ? 'live' : tracking.status === 'error' ? 'bad' : ''}`} />
-          <span data-testid="tracking-status">{trackingLabel}</span>
-          {cameraOn && tracking.stats && (
-            <span className="stats" data-testid="ai-stats" title="Số lần AI nhận diện mỗi giây · thời gian xử lý một khung hình">
-              {tracking.stats.detectionsPerSecond} lần/giây · {Math.round(tracking.stats.inferenceMs)} ms
-            </span>
-          )}
-          <span className="divider" />
-          <span className={`dot ${offline.status === 'ready' ? 'ready' : offline.status === 'incomplete' ? 'bad' : offline.status === 'preparing' ? 'pending' : ''}`} />
-          <span data-testid="offline-status">
-            {{ ready: 'Sẵn sàng dùng offline', preparing: 'Đang chuẩn bị offline…', incomplete: `Chưa đủ tài nguyên offline${offline.missing ? ` (thiếu ${offline.missing}/${offline.total})` : ''}`, unsupported: import.meta.env.DEV ? 'Offline chỉ có ở bản build' : 'Trình duyệt không hỗ trợ offline' }[offline.status]}
-            {!offline.online && ' · đang ngoại tuyến'}
+          <span className="status-pill">
+            <span className={`dot ${handMode ? 'live' : tracking.status === 'error' ? 'bad' : ''}`} />
+            <span data-testid="tracking-status">{trackingLabel}</span>
+            {cameraOn && tracking.stats && (
+              <span className="stats" data-testid="ai-stats" title="Số lần AI nhận diện mỗi giây · thời gian xử lý một khung hình">
+                {tracking.stats.detectionsPerSecond} lần/giây · {Math.round(tracking.stats.inferenceMs)} ms
+              </span>
+            )}
           </span>
-          {(offline.status === 'incomplete' || offline.status === 'ready') && (
-            <button type="button" className="link-button" onClick={() => void (offline.status === 'ready' ? offline.check() : offline.repair())}>
-              {offline.status === 'ready' ? 'Kiểm tra lại' : 'Thử lại'}
-            </button>
-          )}
+          <span className="status-pill">
+            <span className={`dot ${offline.status === 'ready' ? 'ready' : offline.status === 'incomplete' ? 'bad' : offline.status === 'preparing' ? 'pending' : ''}`} />
+            <span data-testid="offline-status">
+              {{ ready: 'Sẵn sàng dùng offline', preparing: 'Đang chuẩn bị offline…', incomplete: `Chưa đủ tài nguyên offline${offline.missing ? ` (thiếu ${offline.missing}/${offline.total})` : ''}`, unsupported: import.meta.env.DEV ? 'Offline chỉ có ở bản build' : 'Trình duyệt không hỗ trợ offline' }[offline.status]}
+              {!offline.online && ' · đang ngoại tuyến'}
+            </span>
+            {(offline.status === 'incomplete' || offline.status === 'ready') && (
+              <button type="button" className="link-button" onClick={() => void (offline.status === 'ready' ? offline.check() : offline.repair())}>
+                {offline.status === 'ready' ? 'Kiểm tra lại' : 'Thử lại'}
+              </button>
+            )}
+          </span>
         </div>
-        <button type="button" className="icon-button sound" onClick={toggleMute} aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'} aria-pressed={!muted} title="Âm thanh" data-audio={audioState}>
-          {muted ? '🔇' : '🔊'}
-        </button>
-        <button type="button" className="icon-button" onClick={toggleFullscreen} aria-label="Toàn màn hình" title="Toàn màn hình (F)">
-          ⛶
-        </button>
+        <div className="top-actions">
+          <button type="button" className="icon-button sound" onClick={toggleMute} aria-label={muted ? 'Bật âm thanh' : 'Tắt âm thanh'} aria-pressed={!muted} title="Âm thanh" data-audio={audioState}>
+            {muted ? <SoundOffIcon size={20} /> : <SoundOnIcon size={20} />}
+          </button>
+          <button type="button" className="icon-button" onClick={toggleFullscreen} aria-label="Toàn màn hình" title="Toàn màn hình (F)">
+            <FullscreenIcon size={18} />
+          </button>
+        </div>
       </header>
 
       {offline.updateReady && (
@@ -563,16 +586,30 @@ export default function App() {
       )}
 
       <section className="intro">
-        <div>
-          <span className="eyebrow">TRẢI NGHIỆM TƯƠNG TÁC · 01</span>
-          <h1>Gieo mầm</h1>
-          <p>Mỗi chuyển động nhỏ có thể nuôi dưỡng một điều tốt đẹp.</p>
-          <p className="intro-sub">Chơi đàn bầu, sáo trúc, đàn tranh, trống cơm bằng đôi tay — để tiếng nhạc của cha ông mọc thành khu vườn quê.</p>
+        <div className="intro-copy">
+          <div className="intro-headline">
+            <h1>Gieo mầm</h1>
+            <p className="intro-tagline">Chơi nhạc cụ cổ truyền bằng cử chỉ tay</p>
+          </div>
         </div>
-        <PinchDemo />
-        <button type="button" className="start" onClick={cameraOn ? stopCamera : startCamera}>
-          {cameraOn ? 'Tắt camera' : 'Bắt đầu'} <span aria-hidden="true">↗</span>
-        </button>
+
+        <div className={`hint ${tracking.problem ? 'is-error' : lowLight ? 'is-warn' : ''}`} role="status" aria-live="polite">
+          <span className="hint-icon" aria-hidden="true">✦</span>
+          <span className="hint-text">{tracking.problem ?? (lowLight ? 'Ánh sáng hơi yếu — hãy bật thêm đèn để AI thấy tay rõ hơn.' : notice)}</span>
+          {tracking.problem && (
+            <button type="button" onClick={tracking.retry}>
+              Thử lại
+            </button>
+          )}
+        </div>
+
+        <div className="intro-cta">
+          <PinchDemo />
+          <button type="button" className={`start ${cameraOn ? 'active' : ''}`} onClick={cameraOn ? stopCamera : startCamera}>
+            <span className="start-icon" aria-hidden="true">{cameraOn ? '⏹' : '▶'}</span>
+            <span>{cameraOn ? 'Tắt camera' : 'Bắt đầu'}</span>
+          </button>
+        </div>
       </section>
 
       <div className="studio">
@@ -580,46 +617,6 @@ export default function App() {
           <span className="section-label">NHẠC CỤ CỔ TRUYỀN</span>
           <InstrumentPanel instrument={instrument} tutorial={tutorial} playingPiece={playingPiece} onSelect={chooseInstrument} onTutorial={practise} onPiece={id => void openPiece(PIECES[INSTRUMENT_IDS.indexOf(id)])} onLesson={startLesson} />
 
-          <span className="section-label">CÁCH CHƠI</span>
-          <ol className="steps">
-            <li>
-              <i>01</i>
-              <div>
-                <b>Chọn nhạc cụ</b>
-                <small>Mỗi nhạc cụ mọc thành một loài cây: sen, tre, đào, lúa.</small>
-              </div>
-            </li>
-            <li>
-              <i>02</i>
-              <div>
-                <b>Đưa tay vào khung</b>
-                <small>Bấm Bắt đầu, giữ cả bàn tay trong khung nét đứt. Tay càng cao, nốt càng cao.</small>
-              </div>
-            </li>
-            <li>
-              <i>03</i>
-              <div>
-                <b>Chụm để chơi, thả để hoa nở</b>
-                <small>Chụm ngón cái và ngón trỏ để gảy, thổi hay gõ; mỗi nốt nhạc mọc thành lá, hoa.</small>
-              </div>
-            </li>
-          </ol>
-          <div className="hint" role="status" aria-live="polite">
-            <span aria-hidden="true">✦</span>
-            <span>{tracking.problem ?? (lowLight ? 'Ánh sáng hơi yếu — hãy bật thêm đèn hoặc quay mặt về phía nguồn sáng để AI thấy tay rõ hơn.' : notice)}</span>
-            {tracking.problem && (
-              <button type="button" onClick={tracking.retry}>
-                Thử lại
-              </button>
-            )}
-          </div>
-
-          <div className="privacy">
-            <span aria-hidden="true">♧</span>
-            <span>Hình ảnh camera được AI xử lý ngay trên máy này — không tải lên máy chủ và không được lưu lại.</span>
-          </div>
-
-          <span className="section-label">THƯ VIỆN</span>
           <Library
             artworks={artworks}
             samples={PIECES}
@@ -631,6 +628,11 @@ export default function App() {
             onRename={artwork => void renameArtwork(artwork)}
             onDelete={artwork => void removeArtwork(artwork)}
           />
+
+          <div className="privacy">
+            <span aria-hidden="true">♧</span>
+            <span>Hình ảnh camera xử lý trực tiếp trên máy — không tải lên máy chủ và không lưu lại.</span>
+          </div>
         </aside>
 
         <section className="art-area">
@@ -643,6 +645,17 @@ export default function App() {
                 🎎 Sân khấu nhạc cụ (AR)
               </button>
             </div>
+            {view === 'garden' && (
+              <button
+                type="button"
+                className={`guides-toggle ${showGuides ? 'on' : ''}`}
+                onClick={() => setShowGuides(v => !v)}
+                aria-pressed={showGuides}
+                title="Ẩn/hiện đường dẫn cao độ ngũ cung và dây đàn trên giấy Dó (không xuất vào ảnh PNG)"
+              >
+                ⊶ Phách dẫn đường
+              </button>
+            )}
             <span className="garden-stats" data-testid="garden-stats" data-strokes={strokes.length}>
               {garden.notes} nốt · {garden.blooms} hoa lá · {garden.instruments} nhạc cụ
             </span>
@@ -652,6 +665,7 @@ export default function App() {
           </div>
           <div className="canvas-wrap">
             <GardenCanvas store={store} cursor={cursor} override={sceneOverride} onFrame={onFrame} onScene={onScene} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} />
+            {view === 'garden' && <GardenGuides instrument={instrument} visible={showGuides} />}
             {view === 'stage' && (
               <StageView
                 instrument={instrument}
@@ -672,46 +686,57 @@ export default function App() {
               <div className="canvas-caption">
                 <span className="seed" aria-hidden="true">✳</span>
                 <b>Khu vườn đang chờ bạn</b>
-                <small>{handMode ? 'Chụm ngón cái và ngón trỏ để gieo nét đầu tiên' : 'Kéo chuột để gieo nét đầu tiên'}</small>
+                <small>{handMode ? 'Chụm ngón cái và ngón trỏ để gieo nét đầu tiên' : 'Kéo chuột trên giấy Dó hoặc bấm Bắt đầu để chơi bằng cử chỉ tay'}</small>
               </div>
             )}
             {note && (
               <div className="note-badge" key={note.key} data-testid="note" aria-live="off">
-                ♪ {note.text}
+                <span className="note-seal" aria-hidden="true">♪</span>
+                <span>{note.text}</span>
+                {note.stepIndex !== null && (
+                  <span className="note-scale-dots" aria-hidden="true">
+                    {NOTE_NAMES.map((n, idx) => (
+                      <i key={n} className={idx === note.stepIndex ? 'active' : ''} title={n} />
+                    ))}
+                  </span>
+                )}
               </div>
             )}
             {replay.active && <ReplayBar {...replay} onToggle={replay.toggle} onRestart={replay.restart} onSpeed={replay.setSpeed} onClose={stopReplay} />}
             <CameraPreview video={video} sample={lastSample} handState={hand} visible={cameraOn} hidden={cameraHidden || view === 'stage'} onToggle={() => setCameraHidden(value => !value)} />
           </div>
-          <div className="toolbar">
-            <button type="button" onClick={undo} disabled={!strokes.length || drawing || replay.active} title="Hoàn tác (Ctrl+Z)">
-              ↶ <span>Hoàn tác</span>
-            </button>
-            <button type="button" onClick={redo} disabled={!canRedo || drawing || replay.active} title="Khôi phục (Ctrl+Y)">
-              ↷ <span>Khôi phục</span>
-            </button>
-            <button type="button" onClick={startOver} disabled={!strokes.length || replay.active}>
-              ⟲ <span>Làm lại</span>
-            </button>
-            <span className="toolbar-spacer" />
-            <button type="button" onClick={replay.active ? stopReplay : startReplay} disabled={!strokes.length || drawing} title="Phát lại quá trình sáng tác">
-              ▷ <span>{replay.active ? 'Thoát phát lại' : 'Phát lại'}</span>
-            </button>
-            <button type="button" className="save" onClick={() => void save()} disabled={!strokes.length}>
-              ♡ <span>Lưu</span>
-            </button>
-            <button type="button" onClick={exportPng} disabled={!strokes.length}>
-              ⇩ <span>Xuất PNG</span>
-            </button>
-          </div>
-          <div className="name-row">
-            <input aria-label="Tên tác phẩm" value={name} maxLength={80} onChange={event => renameCurrent(event.target.value)} />
-            <span className={`save-state ${saveState.status === 'error' ? 'bad' : ''}`} data-testid="save-state">
-              {{ idle: '', pending: 'Chờ lưu…', saving: 'Đang lưu…', saved: saveState.at ? `Đã lưu lúc ${timeFormat.format(saveState.at)}` : 'Đã lưu', error: 'Chưa lưu được' }[saveState.status]}
-            </span>
-            <span data-testid="point-count" className={points >= MAX_POINTS ? 'full' : ''}>
-              {points.toLocaleString('vi-VN')} / {MAX_POINTS.toLocaleString('vi-VN')} điểm
-            </span>
+
+          <div className="studio-dock">
+            <div className="name-row">
+              <input aria-label="Tên tác phẩm" value={name} maxLength={80} onChange={event => renameCurrent(event.target.value)} />
+              <span className={`save-state ${saveState.status === 'error' ? 'bad' : ''}`} data-testid="save-state">
+                {{ idle: '', pending: 'Chờ lưu…', saving: 'Đang lưu…', saved: saveState.at ? `Đã lưu lúc ${timeFormat.format(saveState.at)}` : 'Đã lưu', error: 'Chưa lưu được' }[saveState.status]}
+              </span>
+              <span data-testid="point-count" className={`point-badge ${points >= MAX_POINTS ? 'full' : ''}`}>
+                {points.toLocaleString('vi-VN')} / {MAX_POINTS.toLocaleString('vi-VN')} điểm
+              </span>
+            </div>
+            <div className="toolbar">
+              <button type="button" onClick={undo} disabled={!strokes.length || drawing || replay.active} title="Hoàn tác (Ctrl+Z)">
+                <ToolbarUndoIcon size={18} /> <span>Hoàn tác</span>
+              </button>
+              <button type="button" onClick={redo} disabled={!canRedo || drawing || replay.active} title="Khôi phục (Ctrl+Y)">
+                <ToolbarRedoIcon size={18} /> <span>Khôi phục</span>
+              </button>
+              <button type="button" onClick={startOver} disabled={!strokes.length || replay.active} title="Xóa khu vườn hiện tại để làm lại">
+                <ToolbarResetIcon size={18} /> <span>Làm lại</span>
+              </button>
+              <span className="toolbar-divider" aria-hidden="true" />
+              <button type="button" onClick={replay.active ? stopReplay : startReplay} disabled={!strokes.length || drawing} title="Phát lại quá trình sáng tác">
+                ▷ <span>{replay.active ? 'Thoát phát lại' : 'Phát lại'}</span>
+              </button>
+              <button type="button" className="save" onClick={() => void save()} disabled={!strokes.length} title="Lưu ngay vào trình duyệt">
+                <ToolbarSaveIcon size={18} /> <span>Lưu</span>
+              </button>
+              <button type="button" className="export-btn" onClick={exportPng} disabled={!strokes.length} title="Tải ảnh PNG Full HD (1920 × 1080)">
+                <ToolbarExportIcon size={18} /> <span>Xuất PNG</span>
+              </button>
+            </div>
           </div>
         </section>
       </div>

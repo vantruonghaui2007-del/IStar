@@ -33,7 +33,20 @@ const TIPS: Record<InstrumentId, string> = {
 export const targetName = (instrument: InstrumentId, note: number) => (instrument === 'trong-com' ? (note >= 5 ? 'Tình' : 'Tùng') : noteLabel(note).name)
 
 /** Augmented-reality stage: virtual instruments over the mirrored camera, plus the play-along lesson. */
-export function StageView({ instrument, source, cameraOn, hand, hits, lesson, onLessonStop, onLessonRestart, onShowGarden, onPointerDown, onPointerMove, onPointerUp }: Props) {
+export function StageView({
+  instrument,
+  source,
+  cameraOn,
+  hand,
+  hits,
+  lesson,
+  onLessonStop,
+  onLessonRestart,
+  onShowGarden,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+}: Props) {
   const video = useRef<HTMLVideoElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const mouse = useRef<Cursor | null>(null)
@@ -71,7 +84,6 @@ export function StageView({ instrument, source, cameraOn, hand, hits, lesson, on
   }
 
   const target = lesson ? lessonTarget(lesson) : null
-  const melody = lesson ? MELODIES[lesson.instrument] : null
 
   return (
     <div className="stage" data-testid="stage">
@@ -102,14 +114,14 @@ export function StageView({ instrument, source, cameraOn, hand, hits, lesson, on
         }}
       />
       {!lesson && <p className="stage-tip">{TIPS[instrument]}</p>}
-      {lesson && melody && !lesson.done && (
+      {lesson && !lesson.done && (
         <div className="lesson-hud" data-testid="lesson">
           <div>
             <b>
-              Tập bài “{melody.title}” · {INSTRUMENTS[lesson.instrument].name}
+              Tập bài “{MELODIES[lesson.instrument].title}” · {INSTRUMENTS[lesson.instrument].name}
             </b>
             <span>
-              Nốt tiếp theo: <strong data-testid="lesson-next">{target !== null ? targetName(lesson.instrument, target) : ''}</strong>
+              Đánh ngay: <strong data-testid="lesson-next">{target !== null ? targetName(lesson.instrument, target) : ''}</strong>
             </span>
           </div>
           <div className="lesson-progress" role="progressbar" aria-valuemin={0} aria-valuemax={lesson.notes.length} aria-valuenow={lesson.index} aria-label="Tiến độ bài tập">
@@ -123,10 +135,11 @@ export function StageView({ instrument, source, cameraOn, hand, hits, lesson, on
           </button>
         </div>
       )}
-      {lesson?.done && melody && (
+
+      {lesson?.done && (
         <div className="lesson-done" role="dialog" aria-label="Hoàn thành bài">
           <span aria-hidden="true">🎉</span>
-          <h2>Bạn đã đánh xong bài “{melody.title}”!</h2>
+          <h2>Bạn đã đánh xong bài “{MELODIES[lesson.instrument].title}”!</h2>
           <p>
             {lesson.notes.length} nốt {INSTRUMENTS[lesson.instrument].name}
             {lesson.mistakes ? ` · ${lesson.mistakes} lần chệch nốt` : ' · không chệch nốt nào'}. Mỗi nốt bạn vừa đánh đã mọc thành {INSTRUMENTS[lesson.instrument].plant.toLowerCase()} trong khu vườn.
