@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { INSTRUMENTS, INSTRUMENT_IDS, type InstrumentId } from '../music/instruments'
 import { MELODIES, PIECE_NOTE } from '../music/pieces'
 import { TUTORIALS } from '../music/tutorial'
-import { BambooIcon, HandPinchIcon, LotusIcon, MelodyNoteIcon, PeachBlossomIcon, RiceEarIcon, StageArIcon } from './InstrumentIcons'
+import { BambooIcon, HandPinchIcon, LotusIcon, MelodyNoteIcon, PeachBlossomIcon, RiceEarIcon, StageArIcon, ApricotIcon, OrchidIcon } from './InstrumentIcons'
 
 export type TutorialState = { instrument: InstrumentId; step: number; since: number } | null
 
@@ -17,6 +17,8 @@ type Props = {
 }
 
 const INSTRUMENT_META: Record<InstrumentId, { icon: (props: { size?: number }) => ReactNode; gesture: string }> = {
+  'dan-nguyet': { icon: ApricotIcon, gesture: 'Chụm rồi thả để gảy · Đưa tay lên xuống chọn nốt và nhấn luyến' },
+  'dan-ty-ba': { icon: OrchidIcon, gesture: 'Chụm thả để gảy dây · Nâng/hạ tay để nhấn luyến' },
   'dan-bau': { icon: LotusIcon, gesture: 'Chụm để gảy nốt · Nâng/hạ tay uốn cần đàn để luyến' },
   'sao-truc': { icon: BambooIcon, gesture: 'Chụm giữ để thổi ngân · Đưa tay lên xuống theo cao độ' },
   'dan-tranh': { icon: PeachBlossomIcon, gesture: 'Chụm gảy từng dây · Lướt ngang để rải 16 dây hoa đào' },

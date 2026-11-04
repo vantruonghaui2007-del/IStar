@@ -11,6 +11,8 @@ type Voice = { setPitch: (hz: number) => void; release: (seconds: number, at?: n
  * - đàn bầu: harmonic-rich tone with slow vibrato and glides (luyến);
  * - sáo trúc: breathy sine with vibrato;
  * - đàn tranh: Karplus–Strong plucked string;
+ * - đàn nguyệt: bright plucked harmonics with a short decay;
+ * - đàn tỳ bà: crisp plucked harmonics with a quick attack and decay;
  * - trống cơm: pitched membrane with a short slap, low “tùng” / high “tình”.
  */
 export class AudioEngine implements SoundOutput {
@@ -51,7 +53,7 @@ export class AudioEngine implements SoundOutput {
     if (!context || !this.dry || context.state !== 'running') return
     const now = context.currentTime
     if (event.kind === 'release') {
-      this.voices.get(strokeId)?.release(instrument === 'dan-bau' ? 1.8 : 0.18)
+      this.voices.get(strokeId)?.release(instrument === 'dan-bau' ? 1.8 : (instrument === 'dan-nguyet' || instrument === 'dan-ty-ba') ? 0.7 : 0.18)
       this.voices.delete(strokeId)
       return
     }
@@ -65,6 +67,7 @@ export class AudioEngine implements SoundOutput {
     if (instrument === 'dan-bau') this.voices.set(strokeId, this.bau(context, hz, now, this.dry))
     else if (instrument === 'sao-truc') this.voices.set(strokeId, this.sao(context, hz, now, this.dry))
     else if (instrument === 'dan-tranh') this.tranh(context, hz, now, this.dry)
+    else if (instrument === 'dan-nguyet' || instrument === 'dan-ty-ba') this.voices.set(strokeId, this.pluckedLute(context, hz, now, this.dry, instrument === 'dan-ty-ba'))
     else this.trong(context, event.degree, now, this.dry)
   }
 
@@ -201,6 +204,56 @@ export class AudioEngine implements SoundOutput {
       release: (seconds, at) => {
         const from = this.fadeOut(context, out.gain, seconds, at)
         for (const node of [body, edge, breath, lfo]) node.stop(from + seconds + 0.05)
+      },
+    }
+  }
+
+  private pluckedLute(context: AudioContext, hz: number, now: number, dest: AudioNode, tyBa: boolean): Voice {
+    const out = context.createGain()
+    out.gain.setValueAtTime(0.0001, now)
+    out.gain.exponentialRampToValueAtTime(tyBa ? 0.4 : 0.48, now + 0.006)
+    out.gain.exponentialRampToValueAtTime(0.0001, now + (tyBa ? 1.5 : 2.2))
+    out.connect(dest)
+    const tone = context.createBiquadFilter()
+    tone.type = 'lowpass'
+    tone.frequency.setValueAtTime(tyBa ? 7200 : 5800, now)
+    tone.frequency.exponentialRampToValueAtTime(1200, now + (tyBa ? 0.9 : 1.5))
+    tone.connect(out)
+    const weights = tyBa ? [1, 0.85, 0.65, 0.42, 0.3, 0.18] : [1, 0.7, 0.45, 0.3, 0.2, 0.1]
+    const oscillators = weights.map((weight, i) => {
+      const osc = context.createOscillator()
+      osc.frequency.setValueAtTime(hz * (i + 1), now)
+      const gain = context.createGain()
+      gain.gain.value = weight / 2
+      osc.connect(gain).connect(tone)
+      osc.start(now)
+      return osc
+    })
+    const friction = context.createBufferSource()
+    friction.buffer = this.noise
+    friction.loop = true
+    const band = context.createBiquadFilter()
+    band.type = 'bandpass'
+    band.frequency.value = hz * 3
+    band.Q.value = 1.5
+    const texture = context.createGain()
+    texture.gain.setValueAtTime(tyBa ? 0.24 : 0.18, now)
+    texture.gain.exponentialRampToValueAtTime(0.0001, now + 0.035)
+    friction.connect(band).connect(texture).connect(out)
+    friction.start(now)
+    const lfo = this.vibrato(context, oscillators.map(osc => osc.detune), 4.5, tyBa ? 5 : 7, 0.12, now)
+    return {
+      setPitch: next => {
+        const at = context.currentTime
+        oscillators.forEach((osc, i) => osc.frequency.setTargetAtTime(next * (i + 1), at, 0.025))
+        band.frequency.setTargetAtTime(next * 3, at, 0.04)
+      },
+      release: (seconds, at) => {
+        // A tap can start and end in one frame; let its attack sound before fading.
+        const from = Math.max(at ?? context.currentTime, now + 0.012)
+        out.gain.cancelAndHoldAtTime(from)
+        out.gain.setTargetAtTime(0.0001, from, seconds / 3)
+        for (const node of [...oscillators, friction, lfo]) node.stop(from + seconds + 0.05)
       },
     }
   }

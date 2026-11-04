@@ -4,6 +4,30 @@ type IconProps = SVGProps<SVGSVGElement> & {
   size?: number | string
 }
 
+export function ApricotIcon({ size = 28, ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true" {...props}>
+      <path d="M5 29 Q14 23 22 7 M13 22 L27 19" stroke="#705032" strokeWidth="2.5" strokeLinecap="round" />
+      {[0, 72, 144, 216, 288].map(angle => <ellipse key={angle} cx="16" cy="9" rx="4.5" ry="6" transform={`rotate(${angle} 16 16)`} fill="#f2c94c" stroke="#dba637" strokeWidth="0.6" />)}
+      <circle cx="16" cy="16" r="3" fill="#bd762a" />
+      <path d="M23 24 Q30 22 28 16 Q21 17 23 24" fill="#72934d" />
+    </svg>
+  )
+}
+
+export function OrchidIcon({ size = 28, ...props }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden="true" {...props}>
+      <path d="M16 29 Q12 21 16 13 M16 29 Q4 29 3 18 Q12 20 16 29 M16 29 Q28 28 29 18 Q22 21 16 29" stroke="#59734b" fill="#83a775" strokeWidth="1.5" />
+      <ellipse cx="16" cy="9" rx="4" ry="7" fill="#d4abe6" />
+      <ellipse cx="9" cy="14" rx="7" ry="4.5" transform="rotate(25 9 14)" fill="#be8ad8" />
+      <ellipse cx="23" cy="14" rx="7" ry="4.5" transform="rotate(-25 23 14)" fill="#be8ad8" />
+      <path d="M12 16 Q16 12 20 16 L19 23 Q16 26 13 23 Z" fill="#a96cc8" />
+      <ellipse cx="16" cy="18" rx="2.5" ry="4" fill="#f4d275" />
+    </svg>
+  )
+}
+
 /** Đàn bầu — Hoa sen: Traditional Vietnamese Lotus flower with blooming petals & golden carpel */
 export function LotusIcon({ size = 28, className, ...props }: IconProps) {
   return (

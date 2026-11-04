@@ -79,3 +79,8 @@ describe('normalizeArtwork', () => {
     expect(normalizeArtwork({ id: 'x', name: 'y', strokes: [{ points: 'bad' }] })).toBeNull()
   })
 })
+
+it('migrates saved fiddle strokes to the replacement lute without losing their drawing', () => {
+  const old = { ...artwork('old-fiddle', 5), strokes: [{ ...stroke('s'), instrument: 'dan-co' }] }
+  expect(normalizeArtwork(old)).toEqual({ ...old, strokes: [{ ...old.strokes[0], instrument: 'dan-ty-ba' }] })
+})

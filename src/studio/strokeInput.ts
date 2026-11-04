@@ -29,7 +29,7 @@ export class StrokeInput {
     } else if (event.type === 'stroke-move') {
       this.store.dispatch({ type: 'extend', point: { x: event.point.x * CANVAS_WIDTH, y: event.point.y * CANVAS_HEIGHT }, elapsed: event.time - this.startedAt })
     } else {
-      this.store.dispatch({ type: 'end' })
+      this.store.dispatch({ type: 'end', elapsed: event.time - this.startedAt })
     }
   }
 }

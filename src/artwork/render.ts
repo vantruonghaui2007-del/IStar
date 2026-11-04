@@ -215,6 +215,21 @@ function drawFlower(ctx: Ctx, flower: Flower, grown: number) {
         ctx.fill()
       }
       break
+    case 'orchid':
+      ctx.rotate(flower.rotation * 0.15)
+      ctx.scale(pop, pop)
+      drawPetals(ctx, 3, r, r * 0.23, flower.accent, 0)
+      for (const side of [-1, 1]) {
+        ctx.beginPath()
+        ctx.ellipse(side * r * 0.45, -r * 0.1, r * 0.65, r * 0.38, side * -0.45, 0, Math.PI * 2)
+        ctx.fillStyle = flower.color
+        ctx.fill()
+      }
+      ctx.beginPath()
+      ctx.ellipse(0, r * 0.35, r * 0.3, r * 0.48, 0, 0, Math.PI * 2)
+      ctx.fillStyle = flower.center
+      ctx.fill()
+      break
     case 'bamboo-tip':
       ctx.rotate(flower.rotation)
       ctx.scale(pop, pop)

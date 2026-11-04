@@ -16,7 +16,7 @@ export type EditorState = {
 export type EditorAction =
   | { type: 'begin'; id: string; seed: number; instrument: InstrumentId; point: { x: number; y: number }; startedAt: number }
   | { type: 'extend'; point: { x: number; y: number }; elapsed: number }
-  | { type: 'end' }
+  | { type: 'end'; elapsed?: number }
   | { type: 'undo' }
   | { type: 'redo' }
   | { type: 'clear' }
@@ -52,8 +52,15 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       if (totalPoints(next) >= MAX_POINTS) return { ...commit(next), limitReached: true }
       return next
     }
-    case 'end':
+    case 'end': {
+      const current = state.current
+      const last = current?.points.at(-1)
+      if (current && last && action.elapsed !== undefined && action.elapsed > last.t) {
+        const next = commit({ ...state, current: { ...current, points: [...current.points, { ...last, t: Math.round(action.elapsed) }] } })
+        return { ...next, limitReached: countPoints(next.strokes) >= MAX_POINTS }
+      }
       return commit(state)
+    }
     case 'undo': {
       const last = state.strokes[state.strokes.length - 1]
       if (state.current || !last) return state

@@ -11,9 +11,18 @@ function curve(count: number, step = 6, dt = 16): Point[] {
 }
 const stroke = (points: Point[], instrument: InstrumentId = 'dan-bau', seed = 42): Stroke => ({ id: 's', instrument, seed, startedAt: 0, points })
 const tap = (instrument: InstrumentId) => stroke([{ x: 500, y: 500, t: 0 }, { x: 503, y: 501, t: 120 }], instrument)
-const INSTRUMENTS: InstrumentId[] = ['dan-bau', 'sao-truc', 'dan-tranh', 'trong-com']
+const INSTRUMENTS: InstrumentId[] = ['dan-bau', 'sao-truc', 'dan-tranh', 'trong-com', 'dan-nguyet', 'dan-ty-ba']
 
 describe('buildPlant', () => {
+  it('grows golden apricot blossoms and purple orchids for the two new instruments', () => {
+    expect(buildPlant(tap('dan-nguyet'), true).flowers[0]).toMatchObject({ kind: 'blossom', center: '#bd762a' })
+    expect(buildPlant(tap('dan-ty-ba'), true).flowers[0]).toMatchObject({ kind: 'orchid', center: '#f4d275' })
+    for (const id of ['dan-nguyet', 'dan-ty-ba'] as const) {
+      const plant = buildPlant(stroke(curve(120), id), true)
+      expect(plant.segments.length).toBeGreaterThan(0)
+      expect(plant.flowers.length).toBeGreaterThan(0)
+    }
+  })
   it('is reproducible from the stroke seed', () => {
     for (const instrument of INSTRUMENTS) {
       expect(buildPlant(stroke(curve(120), instrument), true)).toEqual(buildPlant(stroke(curve(120), instrument), true))

@@ -21,7 +21,7 @@ export function GardenGuides({ instrument, visible }: Props) {
 
   return (
     <svg className="garden-guides" viewBox={`0 0 ${W} ${H}`} aria-hidden="true">
-      {(instrument === 'dan-bau' || instrument === 'sao-truc') && (
+      {(instrument === 'dan-bau' || instrument === 'sao-truc' || instrument === 'dan-nguyet' || instrument === 'dan-ty-ba') && (
         <g className="guides-lanes">
           {Array.from({ length: DEGREES }, (_, degree) => {
             const y = yOfDegree(degree)
