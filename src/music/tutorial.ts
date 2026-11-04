@@ -15,6 +15,16 @@ const on = (instrument: InstrumentId, test: (stroke: Stroke, events: MusicEvent[
 
 /** Three guided steps per instrument; each passes once the visitor has played it (strokes made since the step began). */
 export const TUTORIALS: Record<InstrumentId, TutorialStep[]> = {
+  'dan-nguyet': [
+    { text: 'Chụm rồi thả (hoặc nhấn chuột) để gảy một nốt đàn nguyệt.', check: on('dan-nguyet', (_, events) => count(events, 'pluck') > 0) },
+    { text: 'Giữ chụm, đưa tay lên xuống qua ít nhất ba nốt để nhấn luyến.', check: on('dan-nguyet', (_, events) => count(events, 'glide') >= 2) },
+    { text: 'Chụm và thả ba lần để gảy ba tiếng đàn, gieo ba bông mai.', check: strokes => strokes.filter(stroke => stroke.instrument === 'dan-nguyet' && scoreOf(stroke, true).some(event => event.kind === 'pluck')).length >= 3 },
+  ],
+  'dan-ty-ba': [
+    { text: 'Chụm rồi thả (hoặc nhấn chuột) để gảy một nốt đàn tỳ bà.', check: on('dan-ty-ba', (_, events) => count(events, 'pluck') > 0) },
+    { text: 'Giữ chụm và đưa tay lên xuống để luyến qua ít nhất ba nốt.', check: on('dan-ty-ba', (_, events) => count(events, 'glide') >= 2) },
+    { text: 'Chụm và thả ba lần để gảy ba tiếng đàn, gieo ba bông lan.', check: strokes => strokes.filter(stroke => stroke.instrument === 'dan-ty-ba' && scoreOf(stroke, true).some(event => event.kind === 'pluck')).length >= 3 },
+  ],
   'dan-bau': [
     { text: 'Chụm ngón (hoặc nhấn chuột) để gảy một tiếng đàn.', check: on('dan-bau', (_, events) => count(events, 'pluck') > 0) },
     { text: 'Giữ chụm và đưa tay lên, xuống để luyến qua vài nốt — như uốn cần đàn.', check: on('dan-bau', (_, events) => count(events, 'glide') >= 2) },

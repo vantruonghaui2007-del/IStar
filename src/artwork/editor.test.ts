@@ -6,6 +6,10 @@ const begin = (x: number, y: number, instrument: 'dan-bau' | 'sao-truc' | 'dan-t
 const extend = (x: number, y: number, elapsed: number): EditorAction => ({ type: 'extend', point: { x, y }, elapsed })
 
 describe('editorReducer', () => {
+  it('preserves a stationary hold until release for sustained sound in replay', () => {
+    const state = run([begin(10, 10), { type: 'end', elapsed: 1500 }])
+    expect(state.strokes[0].points).toEqual([{ x: 10, y: 10, t: 0 }, { x: 10, y: 10, t: 1500 }])
+  })
   it('records a stroke with times relative to its start', () => {
     const state = run([begin(10, 10), extend(20, 10, 16), extend(30, 10, 33), { type: 'end' }])
     expect(state.current).toBeNull()

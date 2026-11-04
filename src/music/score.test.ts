@@ -8,6 +8,15 @@ const stroke = (instrument: InstrumentId, points: Point[]): Stroke => ({ id: 's'
 const kinds = (events: { kind: string }[]) => events.map(event => event.kind)
 
 describe('scoreOf — what each instrument plays for a stroke', () => {
+  it('both lutes pluck, then glide and release', () => {
+    const points = [{ x: 200, y: yOfDegree(2), t: 0 }, { x: 250, y: yOfDegree(5), t: 200 }, { x: 300, y: yOfDegree(5), t: 260 }]
+    for (const [id, onset] of [['dan-nguyet', 'pluck'], ['dan-ty-ba', 'pluck']] as const) {
+      expect(scoreOf(stroke(id, points), true)).toEqual([
+        { t: 0, kind: onset, degree: 2 }, { t: 200, kind: 'glide', degree: 5 }, { t: 260, kind: 'release' },
+      ])
+    }
+  })
+
   it('đàn bầu: pinch plucks, moving up or down glides (luyến), lifting releases', () => {
     const dwell = (degree: number, from: number) => [0, 25, 50].map(dt => ({ x: from + dt, y: yOfDegree(degree), t: from + dt }))
     const points = [...dwell(3, 0), ...dwell(5, 100), ...dwell(4, 200)]
@@ -52,7 +61,7 @@ describe('scoreOf — what each instrument plays for a stroke', () => {
 
   it('is stable as a stroke grows, so live play and replay sound the same', () => {
     const points = Array.from({ length: 60 }, (_, i) => ({ x: 100 + i * 25, y: 540 + Math.sin(i / 4) * 400, t: i * 16 }))
-    for (const instrument of ['dan-bau', 'sao-truc', 'dan-tranh', 'trong-com'] as const) {
+    for (const instrument of ['dan-bau', 'sao-truc', 'dan-tranh', 'trong-com', 'dan-nguyet', 'dan-ty-ba'] as const) {
       const full = scoreOf(stroke(instrument, points), false)
       const half = scoreOf(stroke(instrument, points.slice(0, 30)), false)
       expect(full.slice(0, half.length)).toEqual(half)

@@ -28,6 +28,8 @@ const TIPS: Record<InstrumentId, string> = {
   'sao-truc': 'Chụm và giữ để thổi; đưa tay vào làn nốt muốn thổi.',
   'dan-tranh': 'Chụm ngón ngay trên một dây để gảy, hoặc chụm rồi lướt ngang để rải.',
   'trong-com': 'Chụm nhanh trên mặt trống: trên là “tình”, dưới là “tùng”.',
+  'dan-nguyet': 'Chụm rồi thả ở làn nốt để gảy; giữ chụm và đổi làn để nhấn luyến.',
+  'dan-ty-ba': 'Chụm rồi thả để gảy dây; đưa tay lên xuống theo làn nốt, giữ chụm để nhấn luyến.',
 }
 
 export const targetName = (instrument: InstrumentId, note: number) => (instrument === 'trong-com' ? (note >= 5 ? 'Tình' : 'Tùng') : noteLabel(note).name)

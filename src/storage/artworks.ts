@@ -66,7 +66,7 @@ export function normalizeArtwork(raw: unknown): Artwork | null {
   for (const [index, item] of raw.strokes.entries()) {
     if (!isRecord(item) || !Array.isArray(item.points) || !item.points.every(isPoint) || !item.points.length) return null
     const points = item.points as Point[]
-    const instrument = isInstrumentId(item.instrument) ? item.instrument : (PALETTE_INSTRUMENTS[String(item.palette)] ?? 'dan-bau')
+    const instrument = item.instrument === 'dan-co' ? 'dan-ty-ba' : isInstrumentId(item.instrument) ? item.instrument : (PALETTE_INSTRUMENTS[String(item.palette)] ?? 'dan-bau')
     const seed = Number.isFinite(item.seed) ? (item.seed as number) >>> 0 : index + 1
     const id = typeof item.id === 'string' ? item.id : `${raw.id}-${index}`
     if (legacy) {

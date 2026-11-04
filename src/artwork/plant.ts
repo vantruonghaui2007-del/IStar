@@ -16,7 +16,7 @@ const FAST_SPEED = 2.6
 export type Segment = { x0: number; y0: number; x1: number; y1: number; width: number }
 export type LeafShape = 'pad' | 'blade' | 'almond'
 export type Leaf = { x: number; y: number; angle: number; length: number; width: number; color: string; side: 1 | -1; shape: LeafShape; bornAt: number }
-export type FlowerKind = 'lotus' | 'lotus-bud' | 'blossom' | 'bamboo-tip' | 'panicle' | 'tuft'
+export type FlowerKind = 'lotus' | 'lotus-bud' | 'blossom' | 'orchid' | 'bamboo-tip' | 'panicle' | 'tuft'
 export type Flower = {
   kind: FlowerKind
   x: number
@@ -45,6 +45,8 @@ export type Plant = {
 type Look = { stem: string; width: number; leaves: string[]; flower: string[]; center: string; leafEvery: number }
 
 const LOOKS: Record<Species, Look> = {
+  mai: { stem: '#705032', width: 0.65, leaves: ['#72934d', '#8baa5b'], flower: ['#f2c94c', '#ffdf6d', '#eab536'], center: '#bd762a', leafEvery: 125 },
+  lan: { stem: '#59734b', width: 0.55, leaves: ['#83a775', '#668e63'], flower: ['#be8ad8', '#d4abe6', '#a96cc8'], center: '#f4d275', leafEvery: 140 },
   sen: { stem: '#4f7f52', width: 1, leaves: ['#5f9a5d', '#76ad69', '#4e8a54'], flower: ['#f3a6b8', '#e9829c', '#f6c0cc'], center: '#e8c75a', leafEvery: 170 },
   tre: { stem: '#7aa043', width: 0.8, leaves: ['#6b9a3c', '#86b04f', '#5d8a35'], flower: ['#86b04f'], center: '#5b7d31', leafEvery: 150 },
   dao: { stem: '#5a3b2e', width: 0.7, leaves: ['#7aa25a', '#8db368'], flower: ['#f6b3c1', '#f29bb0', '#f9cad4'], center: '#c2185b', leafEvery: 120 },
@@ -120,13 +122,13 @@ export function buildPlant(stroke: Stroke, finished: boolean): Plant {
   const events = scoreOf(stroke, finished)
 
   if (tap) {
-    const kind: FlowerKind = { sen: 'lotus-bud', tre: 'bamboo-tip', dao: 'blossom', lua: 'tuft' }[species] as FlowerKind
+    const kind: FlowerKind = { sen: 'lotus-bud', tre: 'bamboo-tip', dao: 'blossom', lua: 'tuft', mai: 'blossom', lan: 'orchid' }[species] as FlowerKind
     plant.flowers.push(flower(kind, points[0], -Math.PI / 2, true, last.t, look, endRandom))
   } else {
     plant.segments = buildSegments(points, scale * look.width, species === 'tre' ? 7 : species === 'lua' ? 2.5 : MIN_WIDTH * 0.8)
     decorate(plant, species, look, points, events, random, scale)
     if (finished) {
-      const end = { sen: 'lotus', tre: 'bamboo-tip', dao: null, lua: 'panicle' }[species] as FlowerKind | null
+      const end = { sen: 'lotus', tre: 'bamboo-tip', dao: null, lua: 'panicle', mai: null, lan: 'orchid' }[species] as FlowerKind | null
       if (end) plant.flowers.push(flower(end, last, heading(points, points.length - 1), false, last.t, look, endRandom))
     }
   }
@@ -141,6 +143,7 @@ function flower(kind: FlowerKind, point: Point, rotation: number, small: boolean
     lotus: [34, 12],
     'lotus-bud': [16, 5],
     blossom: [13, 5],
+    orchid: [22, 7],
     'bamboo-tip': [42, 14],
     panicle: [44, 14],
     tuft: [54, 16],
@@ -192,6 +195,8 @@ function decorate(plant: Plant, species: Species, look: Look, points: Point[], e
         addLeaf(spot, tangent + side * (0.9 + random() * 0.4), 'blade', (44 + random() * 18) * scale, 0.17)
       }
       if (species === 'dao' && event.kind === 'pluck') plant.flowers.push(flower('blossom', spot, 0, false, spot.t, look, random))
+      if (species === 'mai') plant.flowers.push(flower('blossom', spot, 0, false, spot.t, look, random))
+      if (species === 'lan' && event.kind === 'glide') plant.flowers.push(flower('orchid', spot, tangent, false, spot.t, look, random))
     }
 
     // Then growth by distance, so silent stretches are not bare.
@@ -205,7 +210,7 @@ function decorate(plant: Plant, species: Species, look: Look, points: Point[], e
     if (travelled > 40 && sinceLeaf >= look.leafEvery) {
       if (species === 'sen') addLeaf(points[i], tangent + side * (0.9 + random() * 0.5), 'pad', (26 + random() * 14) * scale, 0.75)
       else if (species === 'tre') addLeaf(points[i], tangent + side * (0.7 + random() * 0.4), 'blade', (48 + random() * 18) * scale, 0.17)
-      else if (species === 'dao') addLeaf(points[i], tangent + side * (0.6 + random() * 0.4), 'almond', (22 + random() * 10) * scale, 0.42)
+      else if (species === 'dao' || species === 'mai') addLeaf(points[i], tangent + side * (0.6 + random() * 0.4), 'almond', (22 + random() * 10) * scale, 0.42)
       else addLeaf(points[i], tangent + side * (0.35 + random() * 0.3), 'blade', (60 + random() * 24) * scale, 0.12)
     }
   }

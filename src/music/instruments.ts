@@ -1,5 +1,5 @@
-export type InstrumentId = 'dan-bau' | 'sao-truc' | 'dan-tranh' | 'trong-com'
-export type Species = 'sen' | 'tre' | 'dao' | 'lua'
+export type InstrumentId = 'dan-bau' | 'sao-truc' | 'dan-tranh' | 'trong-com' | 'dan-nguyet' | 'dan-ty-ba'
+export type Species = 'sen' | 'tre' | 'dao' | 'lua' | 'mai' | 'lan'
 
 export type Instrument = {
   id: InstrumentId
@@ -73,6 +73,18 @@ export const INSTRUMENTS: Record<InstrumentId, Instrument> = {
       'Có bài dân ca quan họ “Trống cơm” nổi tiếng.',
     ],
     howTo: ['Chụm nhanh rồi thả để gõ một tiếng trống.', 'Gõ ở nửa dưới cho tiếng “tùng” trầm, nửa trên cho tiếng “tình” cao.', 'Gõ theo nhịp đều để ruộng lúa mọc thành hàng.'],
+  },
+  'dan-nguyet': {
+    id: 'dan-nguyet', name: 'Đàn nguyệt', plant: 'Hoa mai', species: 'mai', baseMidi: 55,
+    swatch: ['#705032', '#72934d', '#f2c94c'],
+    about: ['Đàn dây gảy có hai dây và bầu đàn tròn như mặt trăng.', 'Tay gảy tạo tiếng đàn giòn, tay bấm nhấn dây để luyến và rung nốt.'],
+    howTo: ['Chụm rồi thả để gảy một nốt.', 'Đưa tay lên xuống để chọn cao độ; giữ chụm và đổi làn để nhấn luyến.', 'Chụm, thả liên tiếp để gảy nhiều tiếng và gieo hoa mai.'],
+  },
+  'dan-ty-ba': {
+    id: 'dan-ty-ba', name: 'Đàn tỳ bà', plant: 'Hoa lan', species: 'lan', baseMidi: 60,
+    swatch: ['#59734b', '#83a775', '#be8ad8'],
+    about: ['Đàn tỳ bà là nhạc cụ dây gảy có bốn dây và bầu đàn hình quả lê.', 'Người chơi gảy dây để tạo tiếng đàn giòn, nhấn và rung dây để thêm sắc thái.'],
+    howTo: ['Chụm rồi thả để gảy một nốt đàn.', 'Đưa tay lên xuống để đổi nốt và luyến.', 'Chụm, thả liên tiếp để gảy nhiều tiếng và gieo hoa lan.'],
   },
 }
 

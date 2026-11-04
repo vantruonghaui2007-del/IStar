@@ -47,10 +47,11 @@ function backdrop(ctx: Ctx, frame: StageFrame) {
 }
 
 function label(ctx: Ctx, text: string, x: number, y: number, size: number, color = '#fdf8ea', align: CanvasTextAlign = 'center') {
-  ctx.font = `600 ${size}px Georgia, serif`
+  ctx.font = `600 ${size}px "Montserrat", "Segoe UI", sans-serif`
   ctx.textAlign = align
   ctx.textBaseline = 'middle'
-  ctx.lineWidth = 6
+  ctx.lineWidth = 2
+  ctx.lineJoin = 'round'
   ctx.strokeStyle = 'rgba(20, 20, 16, 0.55)'
   ctx.strokeText(text, x, y)
   ctx.fillStyle = color
@@ -322,6 +323,62 @@ function trongCom(ctx: Ctx, frame: StageFrame) {
   label(ctx, 'TRỐNG CƠM', 200, H / 2 - 30, 24)
 }
 
+function danNguyet(ctx: Ctx, frame: StageFrame) {
+  lanes(ctx, frame, 510, W - 60)
+  wood(ctx, 236, 105, 48, 670, 12)
+  const body = ctx.createRadialGradient(230, 805, 25, 260, 835, 190)
+  body.addColorStop(0, '#efc78b')
+  body.addColorStop(1, '#9a5f31')
+  ctx.fillStyle = body
+  ctx.beginPath()
+  ctx.arc(260, 835, 185, 0, Math.PI * 2)
+  ctx.fill()
+  ctx.strokeStyle = '#653d26'
+  ctx.lineWidth = 12
+  ctx.stroke()
+  for (let i = 0; i < 8; i++) wood(ctx, 222, 210 + i * 58, 76, 10, 3)
+  wood(ctx, 215, 890, 90, 16, 4)
+  for (const side of [-1, 1]) {
+    wood(ctx, side < 0 ? 184 : 282, side < 0 ? 130 : 170, 54, 18, 6)
+    const hits = recent(frame, () => true)
+    const hit = hits.at(-1)
+    const amplitude = hit ? 12 * Math.exp(-(frame.now - hit.at) / 350) : 0
+    vibratingLine(ctx, 260 + side * 8, 115, 260 + side * 13, 900, amplitude, frame.now / 16 + side, '#fff1c9', 3)
+  }
+  label(ctx, 'ĐÀN NGUYỆT', 260, 55, 26)
+}
+
+function danTyBa(ctx: Ctx, frame: StageFrame) {
+  lanes(ctx, frame, 510, W - 60)
+  wood(ctx, 235, 105, 50, 420, 12)
+  const body = ctx.createRadialGradient(220, 720, 20, 260, 760, 240)
+  body.addColorStop(0, '#efc78b')
+  body.addColorStop(1, '#9a5f31')
+  ctx.fillStyle = body
+  ctx.strokeStyle = '#653d26'
+  ctx.lineWidth = 10
+  ctx.beginPath()
+  ctx.moveTo(235, 390)
+  ctx.bezierCurveTo(230, 530, 80, 630, 85, 825)
+  ctx.bezierCurveTo(90, 1060, 430, 1060, 435, 825)
+  ctx.bezierCurveTo(440, 630, 290, 530, 285, 390)
+  ctx.closePath()
+  ctx.fill()
+  ctx.stroke()
+  for (let i = 0; i < 12; i++) {
+    const y = 240 + i * 47
+    wood(ctx, 220 - i * 2, y, 80 + i * 4, 9, 3)
+  }
+  wood(ctx, 205, 910, 110, 18, 4)
+  for (let i = 0; i < 4; i++) {
+    wood(ctx, i % 2 ? 284 : 186, 125 + i * 27, 48, 16, 5)
+    const hit = recent(frame, () => true).at(-1)
+    const amplitude = hit ? 10 * Math.exp(-(frame.now - hit.at) / 260) : 0
+    vibratingLine(ctx, 248 + i * 8, 115, 239 + i * 14, 916, amplitude, frame.now / 14 + i, '#fff1c9', 2)
+  }
+  label(ctx, 'ĐÀN TỲ BÀ', 260, 55, 26)
+}
+
 function cursor(ctx: Ctx, frame: StageFrame) {
   const hand = frame.hand
   if (!hand) return
@@ -343,6 +400,8 @@ export function drawStage(ctx: Ctx, frame: StageFrame) {
   if (frame.instrument === 'dan-bau') danBau(ctx, frame)
   else if (frame.instrument === 'sao-truc') saoTruc(ctx, frame)
   else if (frame.instrument === 'dan-tranh') danTranh(ctx, frame)
+  else if (frame.instrument === 'dan-nguyet') danNguyet(ctx, frame)
+  else if (frame.instrument === 'dan-ty-ba') danTyBa(ctx, frame)
   else trongCom(ctx, frame)
   cursor(ctx, frame)
 }

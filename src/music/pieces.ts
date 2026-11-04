@@ -29,6 +29,19 @@ const SAO: Line[] = [
   [[3, 1], [5, 1], [6, 1], [5, 0.5], [3, 0.5], [2, 2]],
   [[2, 1], [1, 1], [0, 0.5], [1, 0.5], [0, 3]],
 ]
+const NGUYET: Line[] = [
+  [[2, 0.5], [4, 0.5], [5, 1], [7, 1], [5, 1], [4, 1], [2, 2]],
+  [[3, 0.5], [5, 0.5], [6, 1], [8, 1], [6, 1], [5, 1], [3, 2]],
+  [[2, 1], [5, 0.5], [7, 0.5], [8, 1], [7, 1], [5, 1], [4, 2]],
+  [[6, 0.5], [8, 0.5], [9, 1], [8, 0.5], [6, 0.5], [5, 1], [3, 2]],
+  [[5, 1], [7, 0.5], [6, 0.5], [4, 1], [2, 1], [1, 1], [0, 3]],
+]
+const TY_BA: Line[] = [
+  [[2, 1], [3, 1], [5, 2], [4, 1], [2, 2]],
+  [[4, 1], [6, 1], [7, 2], [5, 1], [3, 2]],
+  [[5, 1], [7, 1], [8, 1], [6, 1], [5, 2]],
+  [[4, 1], [3, 1], [2, 1], [1, 1], [0, 3]],
+]
 const n = (note: number, beats: Beat): ZitherItem => ({ note, beats })
 const sweep = (from: number, to: number, beats: Beat): ZitherItem => ({ sweep: [from, to], beats })
 const TRANH: ZitherItem[][] = [
@@ -48,6 +61,8 @@ const TRONG: [number, Beat][] = [...BAR_A, ...BAR_A, ...BAR_B, ...BAR_A, ...BAR_
 const sweepNotes = ([from, to]: [number, number]) => Array.from({ length: Math.abs(to - from) + 1 }, (_, i) => from + i * Math.sign(to - from))
 
 export const MELODIES: Record<InstrumentId, Melody> = {
+  'dan-nguyet': { title: 'Trăng sân đình', bpm: 84, notes: NGUYET.flat().map(([degree]) => degree) },
+  'dan-ty-ba': { title: 'Lan bên thềm', bpm: 72, notes: TY_BA.flat().map(([degree]) => degree) },
   'dan-bau': { title: 'Gió đồng', bpm: 66, notes: BAU.flat().map(([degree]) => degree) },
   'sao-truc': { title: 'Chiều quê', bpm: 80, notes: SAO.flat().map(([degree]) => degree) },
   'dan-tranh': { title: 'Mưa xuân', bpm: 92, notes: TRANH.flat().flatMap(item => ('note' in item ? [item.note] : sweepNotes(item.sweep))) },
@@ -131,7 +146,13 @@ function compose(instrument: InstrumentId): Stroke[] {
   const melody = MELODIES[instrument]
   const composer = new Composer(instrument, melody.bpm, instrument.length * 7919)
   const beat = composer.ms(1)
-  if (instrument === 'dan-bau' || instrument === 'sao-truc') {
+  if (instrument === 'dan-nguyet' || instrument === 'dan-ty-ba') {
+    const notes = (instrument === 'dan-ty-ba' ? TY_BA : NGUYET).flat()
+    notes.forEach(([degree, beats], i) => {
+      const hold = Math.min(180, composer.ms(beats) - 40)
+      composer.tap(120 + (i / (notes.length - 1)) * 1680, yOfDegree(degree), hold, composer.ms(beats) - hold)
+    })
+  } else if (instrument === 'dan-bau' || instrument === 'sao-truc') {
     const lines = instrument === 'dan-bau' ? BAU : SAO
     const width = 1680 / lines.length
     lines.forEach((line, i) => composer.line(line, 120 + i * width, width - 60, beat))

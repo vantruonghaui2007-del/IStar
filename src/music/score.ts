@@ -63,6 +63,8 @@ export function scoreOf(stroke: Stroke, finished: boolean): MusicEvent[] {
   if (!points.length) return []
   switch (stroke.instrument) {
     case 'dan-bau':
+    case 'dan-nguyet':
+    case 'dan-ty-ba':
       return held(points, 'pluck', finished)
     case 'sao-truc':
       return held(points, 'blow', finished)
